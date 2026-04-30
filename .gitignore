@@ -1,0 +1,53 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+dist/
+build/
+*.egg-info/
+.DS_Store
+uploads/
+# ------------------------------------------------------
+# Python
+# ------------------------------------------------------
+.env
+.env.*
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual Environments
+venv/
+ENV/
+env/
+.venv/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Distribution / Packaging
+dist/
+build/
+*.egg-info/
+
+# IDEs / Editors
+.vscode/
+.idea/
+*.swp
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Logs & Data
+logs/
+*.log
+data_cache/
+venv/
