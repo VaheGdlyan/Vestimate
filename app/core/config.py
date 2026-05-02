@@ -4,8 +4,8 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 class Settings(BaseSettings):
     APP_NAME: str = "Vestimate"
     DEBUG: bool = True
-    REDIS_URL: str = "redis://redis:6379/0"
-    SUPABASE_DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres"
+    REDIS_URL: str = "redis://127.0.0.1:6379/0"
+    SUPABASE_DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/postgres"
     
     # Cloudflare R2 Configuration
     R2_ACCOUNT_ID: str = ""
