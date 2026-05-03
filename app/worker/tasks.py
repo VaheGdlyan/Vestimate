@@ -52,14 +52,22 @@ def ingest_garment(self, item_id: str, raw_object_key: str, user_id: str):
             raw_bytes = raw_response.content
             logger.info(f"[{item_id}] Downloaded {len(raw_bytes)} bytes from R2")
             
+            # Custom retry loop to handle Modal's aggressive 429 rate limits
+            def post_with_retry(url, content, timeout, max_attempts=7):
+                import time
+                for attempt in range(max_attempts):
+                    resp = client.post(url, content=content, headers={"Content-Type": "application/octet-stream"}, timeout=timeout)
+                    if resp.status_code == 429:
+                        wait_time = 2 ** attempt
+                        logger.warning(f"[{item_id}] 429 Too Many Requests. Retrying in {wait_time}s...")
+                        time.sleep(wait_time)
+                        continue
+                    resp.raise_for_status()
+                    return resp
+                raise Exception(f"Max retries exceeded for {url} (429 Too Many Requests)")
+            
             # Step 3: Call Modal Segmentation Endpoint (rembg)
-            seg_response = client.post(
-                modal_segment_url, 
-                content=raw_bytes,
-                headers={"Content-Type": "application/octet-stream"},
-                timeout=30.0
-            )
-            seg_response.raise_for_status()
+            seg_response = post_with_retry(modal_segment_url, raw_bytes, 120.0)
             segmented_png_bytes = seg_response.content
             logger.info(f"[{item_id}] Segmentation complete: {len(segmented_png_bytes)} bytes")
             
@@ -74,13 +82,7 @@ def ingest_garment(self, item_id: str, raw_object_key: str, user_id: str):
             logger.info(f"[{item_id}] Segmented image uploaded to R2: {segmented_key}")
             
             # Step 5: Call Modal Embedding & Tagging Endpoint (FashionCLIP)
-            embed_response = client.post(
-                modal_embed_url, 
-                content=segmented_png_bytes,
-                headers={"Content-Type": "application/octet-stream"},
-                timeout=30.0
-            )
-            embed_response.raise_for_status()
+            embed_response = post_with_retry(modal_embed_url, segmented_png_bytes, 120.0)
             ml_results = embed_response.json()
             
             embedding = ml_results["embedding"]
@@ -103,77 +105,49 @@ def ingest_garment(self, item_id: str, raw_object_key: str, user_id: str):
                 colors = ["unknown"]
             
             # Step 8: Database Upsert — embedding + metadata into wardrobe_items
-            async def upsert_db():
-                from sqlalchemy import text
-                from app.core.config import async_session_maker
+            def upsert_db():
+                from supabase import create_client
+                supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
                 
                 # Construct CDN URL for the segmented image
-                # In production, this would use your Cloudflare CDN custom domain
                 image_url = f"https://cdn.vestimate.app/{segmented_key}"
                 
-                async with async_session_maker() as session:
-                    # Update the wardrobe_items row (stub was created at upload time)
-                    query = text("""
-                        UPDATE wardrobe_items 
-                        SET embedding = :embedding::vector(512),
-                            status = 'active',
-                            category = :category,
-                            material = :material,
-                            fit = :fit,
-                            colors = :colors,
-                            confidence_min = :confidence_min,
-                            needs_review = :needs_review,
-                            image_url = :image_url,
-                            processed_at = NOW(),
-                            updated_at = NOW()
-                        WHERE id = :item_id
-                    """)
-                    await session.execute(query, {
-                        "embedding": str(embedding),  # pgvector natively parses stringified lists
-                        "category": tags["category"]["value"],
-                        "material": tags["material"]["value"],
-                        "fit": tags["fit"]["value"],
-                        "colors": colors,
-                        "confidence_min": min_confidence,
-                        "needs_review": needs_review,
-                        "image_url": image_url,
-                        "item_id": item_id
-                    })
-                    
-                    # Step 8b: Insert into manual_review_queue if confidence is low
-                    if needs_review:
-                        review_query = text("""
-                            INSERT INTO manual_review_queue (item_id, user_id, tags_raw)
-                            VALUES (:item_id, :user_id, :tags_raw)
-                        """)
-                        await session.execute(review_query, {
-                            "item_id": item_id,
-                            "user_id": user_id,
-                            "tags_raw": json.dumps(tags)
-                        })
-                        logger.info(f"[{item_id}] Low confidence ({min_confidence:.3f}), "
-                                   f"added to review queue")
-                    
-                    # Step 9: Emit wardrobe.item.ingested event
-                    event_query = text("""
-                        INSERT INTO event_log (event_type, user_id, payload)
-                        VALUES (:event_type, :user_id, :payload)
-                    """)
-                    await session.execute(event_query, {
-                        "event_type": "wardrobe.item.ingested",
+                # Update the wardrobe_items row
+                supabase.table("wardrobe_items").update({
+                    "embedding": embedding,
+                    "status": "active",
+                    "category": tags["category"]["value"],
+                    "material": tags["material"]["value"],
+                    "fit": tags["fit"]["value"],
+                    "colors": colors,
+                    "confidence_min": min_confidence,
+                    "needs_review": needs_review,
+                    "image_url": image_url,
+                }).eq("id", item_id).execute()
+                
+                # Step 8b: Insert into manual_review_queue if confidence is low
+                if needs_review:
+                    supabase.table("manual_review_queue").insert({
+                        "item_id": item_id,
                         "user_id": user_id,
-                        "payload": json.dumps({
-                            "item_id": item_id,
-                            "category": tags["category"]["value"],
-                            "confidence_min": min_confidence,
-                            "needs_review": needs_review
-                        })
-                    })
-                    
-                    await session.commit()
+                        "tags_raw": tags
+                    }).execute()
+                    logger.info(f"[{item_id}] Low confidence ({min_confidence:.3f}), "
+                               f"added to review queue")
+                
+                # Step 9: Emit wardrobe.item.ingested event
+                supabase.table("event_log").insert({
+                    "event_type": "wardrobe.item.ingested",
+                    "user_id": user_id,
+                    "payload": {
+                        "item_id": item_id,
+                        "category": tags["category"]["value"],
+                        "confidence_min": min_confidence,
+                        "needs_review": needs_review
+                    }
+                }).execute()
             
-            # Run the async DB transaction from within the sync Celery worker
-            asyncio.run(upsert_db())
+            upsert_db()
             
             logger.info(f"[{item_id}] Ingestion complete. "
                        f"Category: {tags['category']['value']}, "
@@ -194,16 +168,11 @@ def ingest_garment(self, item_id: str, raw_object_key: str, user_id: str):
         
         # Update Supabase status to 'failed' so the client knows
         try:
-            async def mark_failed():
-                from sqlalchemy import text
-                from app.core.config import async_session_maker
-                async with async_session_maker() as session:
-                    await session.execute(
-                        text("UPDATE wardrobe_items SET status = 'failed', updated_at = NOW() WHERE id = :item_id"),
-                        {"item_id": item_id}
-                    )
-                    await session.commit()
-            asyncio.run(mark_failed())
+            from supabase import create_client
+            supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+            supabase.table("wardrobe_items").update({
+                "status": "failed"
+            }).eq("id", item_id).execute()
         except Exception as db_err:
             logger.error(f"Failed to mark item {item_id} as failed in DB: {db_err}")
         

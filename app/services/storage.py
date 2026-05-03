@@ -29,13 +29,16 @@ async def save_upload_file(upload_file: UploadFile, user_id: str, filename: str)
     # Define bucket structure
     object_key = f"raw-uploads/{user_id}/{filename}"
     
-    # We use asyncio.to_thread to run the synchronous boto3 call in a non-blocking way
+    # Read file contents safely in async context
+    file_bytes = await upload_file.read()
+    
+    # We use asyncio.to_thread to run the synchronous boto3 call
     await asyncio.to_thread(
-        s3_client.upload_fileobj,
-        upload_file.file,
-        settings.R2_BUCKET_NAME,
-        object_key,
-        ExtraArgs={"ContentType": upload_file.content_type}
+        s3_client.put_object,
+        Bucket=settings.R2_BUCKET_NAME,
+        Key=object_key,
+        Body=file_bytes,
+        ContentType=upload_file.content_type or "image/jpeg"
     )
     
     return object_key

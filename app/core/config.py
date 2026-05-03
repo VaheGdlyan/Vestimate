@@ -35,6 +35,7 @@ engine = create_async_engine(
     settings.SUPABASE_DATABASE_URL,
     echo=settings.DEBUG,
     future=True,
+    connect_args={"statement_cache_size": 0}
 )
 
 async_session_maker = async_sessionmaker(
