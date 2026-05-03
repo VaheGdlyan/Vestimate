@@ -1,10 +1,12 @@
 import modal
 from fastapi import Request, Response
+from pydantic import BaseModel
 from typing import Dict, Any
 
 # Define the container images with required ML dependencies
 image_rembg = modal.Image.debian_slim().pip_install("rembg[cli]==2.0.50", "Pillow==10.3.0", "numpy==1.26.4")
 image_clip = modal.Image.debian_slim().pip_install("torch==2.3.0", "transformers==4.41.0", "Pillow==10.3.0", "fastapi[standard]")
+image_text = modal.Image.debian_slim().pip_install("torch==2.3.0", "transformers==4.41.0", "fashion-clip", "fastapi[standard]")
 
 app = modal.App("vestimate-inference")
 
@@ -85,3 +87,44 @@ async def embed_and_tag(request: Request) -> Dict[str, Any]:
             "material": {"value": candidate_materials[mat_max_idx], "confidence": round(mat_probs[mat_max_idx], 3)}
         }
     }
+
+
+class TextEmbedInput(BaseModel):
+    text: str = ""
+
+
+@app.function(image=image_clip, gpu="T4", timeout=30)
+@modal.fastapi_endpoint(method="POST")
+async def text_embed(body: TextEmbedInput) -> Dict[str, Any]:
+    """
+    Encodes a text string using the FashionCLIP text encoder via HuggingFace transformers.
+    Uses the patrickjohncyh/fashion-clip model which produces 512-dim embeddings
+    in the same latent space as the image encoder (embed_and_tag).
+
+    Input:  { "text": "business casual outfit for rain at 14 degrees C" }
+    Output: { "embedding": [0.023, -0.114, ...] }  # float[512]
+    """
+    import torch
+    from transformers import CLIPProcessor, CLIPModel
+
+    text = body.text
+    if not text:
+        return {"embedding": [0.0] * 512}
+
+    model_id = "patrickjohncyh/fashion-clip"
+    processor = CLIPProcessor.from_pretrained(model_id)
+    clip_model = CLIPModel.from_pretrained(model_id)
+    clip_model.eval()
+
+    inputs = processor(text=[text], return_tensors="pt", padding=True, truncation=True)
+
+    with torch.no_grad():
+        text_features = clip_model.get_text_features(**inputs)
+
+    # L2-normalize and convert to Python list
+    embedding = text_features[0]
+    norm = embedding.norm()
+    if norm > 0:
+        embedding = embedding / norm
+
+    return {"embedding": embedding.tolist()}
