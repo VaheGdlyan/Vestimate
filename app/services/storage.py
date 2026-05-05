@@ -42,3 +42,14 @@ async def save_upload_file(upload_file: UploadFile, user_id: str, filename: str)
     )
     
     return object_key
+
+def generate_signed_url(object_key: str, expiry_seconds: int = 3600) -> str:
+    """Generate a time-limited presigned GET URL for a private R2 object."""
+    s3_client = get_s3_client()
+    url = s3_client.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": settings.R2_BUCKET_NAME, "Key": object_key},
+        ExpiresIn=expiry_seconds
+    )
+    return url
+

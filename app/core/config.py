@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_UPLOAD: str = "10/minute"
     RATE_LIMIT_RECOMMENDATION: str = "30/minute"
     RATE_LIMIT_FEEDBACK: str = "60/minute"
+    TOKEN_ENCRYPTION_KEY: str = "0sCkYAU5Np4gwWW7E4ffuryzi831doTur-LNg2FEw-A"
     ENV: str = "local"
     PREWARM_CRON_UTC: str = "23:00"
 

@@ -7,12 +7,14 @@ On 'worn' action: updates last_worn_at for all outfit items
 """
 
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from supabase import create_client
 
 from app.core.config import settings
 from app.models.recommendation_schemas import FeedbackRequest
 from app.services.recommendation_cache import invalidate_user_cache
+from app.core.auth import CurrentUser
+from app.core.rate_limit import limiter
 
 router = APIRouter()
 _supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
@@ -23,10 +25,13 @@ _supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
     status_code=204,
     summary="Submit feedback on a recommendation",
 )
+@limiter.limit(settings.RATE_LIMIT_FEEDBACK)
 async def submit_feedback(
-    user_id: str,
+    request: Request,
+    current_user: CurrentUser,
     payload: FeedbackRequest,
 ):
+    user_id = str(current_user)
     """
     Records feedback and updates wardrobe state.
 
