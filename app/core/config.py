@@ -26,6 +26,18 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     OPENWEATHERMAP_API_KEY: str = ""
 
+    # Phase 4
+    SUPABASE_JWKS_URL: str = ""
+    SUPABASE_JWT_AUDIENCE: str = "authenticated"
+    SENTRY_DSN: str = ""
+    LOGFIRE_TOKEN: str = ""
+    PROMETHEUS_METRICS_TOKEN: str = ""
+    RATE_LIMIT_UPLOAD: str = "10/minute"
+    RATE_LIMIT_RECOMMENDATION: str = "30/minute"
+    RATE_LIMIT_FEEDBACK: str = "60/minute"
+    ENV: str = "local"
+    PREWARM_CRON_UTC: str = "23:00"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 settings = Settings()
