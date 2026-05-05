@@ -10,7 +10,7 @@ from app.core.config import settings
 
 async def verify_rls():
     url = settings.SUPABASE_DATABASE_URL.replace('postgresql+asyncpg://', 'postgresql://')
-    conn = await asyncpg.connect(url)
+    conn = await asyncpg.connect(url, statement_cache_size=0)
     try:
         tables = ['wardrobe_items', 'outfits', 'feedback_events', 'recommendation_cache', 'users']
         print('Verifying RLS status:')

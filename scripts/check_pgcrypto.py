@@ -8,7 +8,7 @@ from app.core.config import settings
 
 async def check():
     url = settings.SUPABASE_DATABASE_URL.replace('postgresql+asyncpg://', 'postgresql://')
-    conn = await asyncpg.connect(url)
+    conn = await asyncpg.connect(url, statement_cache_size=0)
     try:
         row = await conn.fetchrow("SELECT * FROM pg_extension WHERE extname = 'pgcrypto'")
         print(f"pgcrypto enabled: {bool(row)}")

@@ -211,18 +211,42 @@ async def get_recommendation_history(
     """
     user_id = str(current_user)
     
-    # In a real app, we'd do a join and reconstruct OutfitRecommendationResponse.
-    # For now, we query recommendation_cache which contains the snapshot.
+    # Query with join
     result = (
         _supabase
         .table("recommendation_cache")
         .select("*, outfits(*)")
         .eq("user_id", user_id)
-        .order("created_at", ascending=False)
+        .order("generated_at", desc=True)
         .range(offset, offset + limit - 1)
         .execute()
     )
     
-    # This logic would normally reconstruct the full Pydantic model.
-    # Placeholder return:
-    return [] # To be implemented with full join logic if needed, but endpoint exists.
+    history = []
+    for row in result.data:
+        outfit_data = row.get("outfits")
+        if not outfit_data:
+            continue
+            
+        # Ensure we have strings for IDs and timestamps
+        rec_id = str(row.get("outfit_id", ""))
+        gen_at = str(row.get("generated_at", ""))
+        
+        history.append(OutfitRecommendationResponse(
+            recommendation_id=rec_id,
+            outfit={
+                "top":    OutfitItem(id=str(outfit_data.get("top_id", "")), image_url=None, category="top", material=None, fit=None, colors=[]),
+                "bottom": OutfitItem(id=str(outfit_data.get("bottom_id", "")), image_url=None, category="bottom", material=None, fit=None, colors=[]),
+                "shoes":  OutfitItem(id=str(outfit_data.get("shoe_id", "")), image_url=None, category="shoes", material=None, fit=None, colors=[]),
+            },
+            stylist_note=outfit_data.get("stylist_note", "No note available"),
+            context_summary={
+                "weather": "Historical",
+                "top_event": "Historical",
+            },
+            generated_at=gen_at,
+            cache_hit=True,
+            fallback_used=bool(row.get("fallback_used", False))
+        ))
+    
+    return history

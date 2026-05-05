@@ -116,7 +116,7 @@ def evict_expired_recommendations():
     
     async def run():
         url = settings.SUPABASE_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
-        conn = await asyncpg.connect(url)
+        conn = await asyncpg.connect(url, statement_cache_size=0)
         try:
             result = await conn.execute(
                 "DELETE FROM recommendation_cache WHERE created_at < NOW() - INTERVAL '24 hours'"
@@ -136,7 +136,7 @@ def prewarm_recommendations():
     
     async def run():
         url = settings.SUPABASE_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
-        conn = await asyncpg.connect(url)
+        conn = await asyncpg.connect(url, statement_cache_size=0)
         try:
             # Find users active in the last 7 days
             rows = await conn.fetch(

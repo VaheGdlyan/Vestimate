@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     ENV: str = "local"
     PREWARM_CRON_UTC: str = "23:00"
 
+    # Phase 5: Google Calendar OAuth
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 settings = Settings()

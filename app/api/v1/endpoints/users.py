@@ -32,7 +32,7 @@ class UserOnboard(BaseModel):
 
 async def _get_db_connection() -> asyncpg.Connection:
     url = settings.SUPABASE_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
-    return await asyncpg.connect(url)
+    return await asyncpg.connect(url, statement_cache_size=0)
 
 async def _validate_city(city: str):
     if not settings.OPENWEATHERMAP_API_KEY:

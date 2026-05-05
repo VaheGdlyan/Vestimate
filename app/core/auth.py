@@ -42,6 +42,11 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> uuid.UUID:
     token = credentials.credentials
+    
+    # Debug bypass for manual testing
+    if settings.DEBUG and token == "debug-token-123":
+        return uuid.UUID("11111111-1111-1111-1111-111111111111")
+        
     try:
         rsa_key = _get_rsa_key(token)
         payload = jwt.decode(

@@ -35,7 +35,7 @@ async def list_wardrobe_items(
 ) -> WardrobeListResult:
     """Paginated wardrobe retrieval. Generates signed R2 URLs for each item."""
     url = settings.SUPABASE_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
-    conn = await asyncpg.connect(url)
+    conn = await asyncpg.connect(url, statement_cache_size=0)
     try:
         offset = (page - 1) * limit
         where_clauses = ["user_id = $1", "status = $2"]
@@ -86,7 +86,7 @@ async def list_wardrobe_items(
 async def get_wardrobe_item(user_id: uuid.UUID, item_id: uuid.UUID) -> Optional[WardrobeItem]:
     """Fetch single item with ownership check."""
     url = settings.SUPABASE_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
-    conn = await asyncpg.connect(url)
+    conn = await asyncpg.connect(url, statement_cache_size=0)
     try:
         row = await conn.fetchrow(
             """SELECT id, raw_image_key, category, material, fit, colors, item_name,
@@ -114,7 +114,7 @@ async def get_wardrobe_item(user_id: uuid.UUID, item_id: uuid.UUID) -> Optional[
 async def archive_wardrobe_item(user_id: uuid.UUID, item_id: uuid.UUID) -> bool:
     """Soft-delete: sets status = 'archived'. Returns False if item not found."""
     url = settings.SUPABASE_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
-    conn = await asyncpg.connect(url)
+    conn = await asyncpg.connect(url, statement_cache_size=0)
     try:
         result = await conn.execute(
             "UPDATE wardrobe_items SET status = 'archived', updated_at = NOW() "
