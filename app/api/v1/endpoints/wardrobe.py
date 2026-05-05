@@ -1,7 +1,8 @@
 import uuid
 import logging
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Request
 from app.models.schemas import UploadResponse
+from app.core.rate_limit import limiter
 from app.services.storage import save_upload_file
 from app.worker.tasks import ingest_garment
 from app.core.config import settings
@@ -21,7 +22,9 @@ def _get_supabase_client():
 
 
 @router.post("/upload", status_code=202, response_model=UploadResponse)
+@limiter.limit(settings.RATE_LIMIT_UPLOAD)
 async def upload_garment(
+    request: Request,
     current_user: CurrentUser,
     file: UploadFile = File(...),
 ):

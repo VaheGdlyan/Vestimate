@@ -8,7 +8,8 @@ Target latency: <100ms on cache hit, <4s on cold path.
 
 import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
+from app.core.rate_limit import limiter
 from supabase import create_client
 
 from app.core.config import settings
@@ -57,7 +58,9 @@ def _find_garment(garment_id: str, candidates) -> GarmentCandidate | None:
     response_model=OutfitRecommendationResponse,
     summary="Get today's outfit recommendation",
 )
+@limiter.limit(settings.RATE_LIMIT_RECOMMENDATION)
 async def get_todays_recommendation(
+    request: Request,
     current_user: CurrentUser,
     city: str = Query(default="Yerevan", description="User's city for weather lookup"),
 ):
