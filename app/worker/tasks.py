@@ -119,7 +119,7 @@ def evict_expired_recommendations():
         conn = await asyncpg.connect(url, statement_cache_size=0)
         try:
             result = await conn.execute(
-                "DELETE FROM recommendation_cache WHERE created_at < NOW() - INTERVAL '24 hours'"
+                "DELETE FROM recommendation_cache WHERE generated_at < NOW() - INTERVAL '24 hours'"
             )
             logger.info(f"Evicted expired recommendations: {result}")
         finally:

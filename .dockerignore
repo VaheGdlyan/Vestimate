@@ -2,3 +2,17 @@ venv/
 __pycache__/
 *.pyc
 uploads/
+.git/
+.env
+.env.*
+!.env.example
+test_images/
+scripts/
+docs/
+.gemini/
+brain/
+README.md
+REPOSITORY_STATE.md
+docker-compose*.yml
+Dockerfile
+.gitignore

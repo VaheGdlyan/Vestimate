@@ -34,10 +34,20 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    command: celery -A app.worker.celery_app worker --loglevel=info --concurrency=2
+    command: celery -A app.worker.tasks worker --pool=threads --concurrency=2 --loglevel=info
     volumes:
       - .:/app
       - ./uploads:/app/uploads
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+
+  beat:
+    build: .
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: celery -A app.worker.tasks beat --loglevel=info
     environment:
       - REDIS_URL=redis://redis:6379/0
 
