@@ -1,11 +1,12 @@
 from fastapi import APIRouter, HTTPException
 from app.models.schemas import TaskStatusResponse
 from app.worker.celery_app import celery_app
+from app.core.auth import CurrentUser
 
 router = APIRouter()
 
 @router.get("/{task_id}", response_model=TaskStatusResponse)
-def get_task_status(task_id: str):
+def get_task_status(task_id: str, current_user: CurrentUser):
     if len(task_id) != 36:
         raise HTTPException(status_code=404, detail="Not Found")
         

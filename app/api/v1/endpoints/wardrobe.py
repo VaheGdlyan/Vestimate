@@ -5,6 +5,7 @@ from app.models.schemas import UploadResponse
 from app.services.storage import save_upload_file
 from app.worker.tasks import ingest_garment
 from app.core.config import settings
+from app.core.auth import CurrentUser
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +22,10 @@ def _get_supabase_client():
 
 @router.post("/upload", status_code=202, response_model=UploadResponse)
 async def upload_garment(
+    current_user: CurrentUser,
     file: UploadFile = File(...),
-    user_id: str = Form(...),
 ):
+    user_id = str(current_user)
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
             status_code=422,

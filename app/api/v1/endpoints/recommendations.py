@@ -12,6 +12,7 @@ from fastapi import APIRouter, HTTPException, Query
 from supabase import create_client
 
 from app.core.config import settings
+from app.core.auth import CurrentUser
 from app.models.recommendation_schemas import (
     OutfitRecommendationResponse,
     OutfitItem,
@@ -57,11 +58,13 @@ def _find_garment(garment_id: str, candidates) -> GarmentCandidate | None:
     summary="Get today's outfit recommendation",
 )
 async def get_todays_recommendation(
-    user_id: str = Query(..., description="The authenticated user's ID"),
+    current_user: CurrentUser,
     city: str = Query(default="Yerevan", description="User's city for weather lookup"),
 ):
     """
     Returns the outfit recommendation for the current user session.
+    """
+    user_id = str(current_user)
 
     Flow:
       1. Check Redis cache -> return immediately on hit
