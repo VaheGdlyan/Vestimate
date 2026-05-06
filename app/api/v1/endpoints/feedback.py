@@ -12,6 +12,7 @@ from supabase import create_client
 
 from app.core.config import settings
 from app.models.recommendation_schemas import FeedbackRequest
+from app.models.schemas import ErrorResponse
 from app.services.recommendation_cache import invalidate_user_cache
 from app.core.auth import CurrentUser
 from app.core.rate_limit import limiter
@@ -48,7 +49,10 @@ async def submit_feedback(
             "item_ids": payload.item_ids,
         }).execute()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to record feedback: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=ErrorResponse(code="feedback_error", message=f"Failed to record feedback: {e}").model_dump()
+        )
 
     if payload.action == "worn":
         try:

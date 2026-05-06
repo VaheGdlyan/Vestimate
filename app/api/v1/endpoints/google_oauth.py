@@ -20,19 +20,8 @@ router = APIRouter()
 
 # ── Encryption helpers (AES-128 via Fernet, key stored in TOKEN_ENCRYPTION_KEY) ──
 
-def _get_fernet() -> Fernet:
-    """Build Fernet cipher from TOKEN_ENCRYPTION_KEY (URL-safe base64, 32 bytes)."""
-    raw = settings.TOKEN_ENCRYPTION_KEY.encode()
-    # Pad or hash to exactly 32 bytes for Fernet
-    padded = (raw * ((32 // len(raw)) + 1))[:32]
-    key = base64.urlsafe_b64encode(padded)
-    return Fernet(key)
+from app.services.google_oauth_service import encrypt_token, decrypt_token, _get_fernet
 
-def encrypt_token(token: str) -> str:
-    return _get_fernet().encrypt(token.encode()).decode()
-
-def decrypt_token(token: str) -> str:
-    return _get_fernet().decrypt(token.encode()).decode()
 
 
 # ── DB helper ──
@@ -87,6 +76,32 @@ async def _revoke_google_token(access_token: str) -> None:
 
 
 # ── Endpoints ──
+
+import urllib.parse
+
+class OAuthAuthorizeResponse(BaseModel):
+    auth_url: str
+
+@router.get("/authorize", response_model=OAuthAuthorizeResponse)
+async def google_oauth_authorize(current_user: CurrentUser, redirect_uri: str):
+    """
+    Generate Google OAuth authorization URL for the client to redirect to.
+    """
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=503, detail="Google OAuth is not configured")
+        
+    base_url = "https://accounts.google.com/o/oauth2/v2/auth"
+    params = {
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "https://www.googleapis.com/auth/calendar.readonly",
+        "access_type": "offline",
+        "prompt": "consent",
+        "state": str(current_user)
+    }
+    auth_url = f"{base_url}?{urllib.parse.urlencode(params)}"
+    return OAuthAuthorizeResponse(auth_url=auth_url)
 
 @router.post("/callback", response_model=OAuthCallbackResponse)
 async def google_oauth_callback(

@@ -6,9 +6,12 @@ from app.services.wardrobe_read import list_wardrobe_items, get_wardrobe_item, a
 from app.core.rate_limit import limiter
 from fastapi import Request
 
-router = APIRouter()
+from app.services.wardrobe_read import WardrobeItem, WardrobeListResult
+from app.models.schemas import ErrorResponse
 
-@router.get("/items")
+router = APIRouter(tags=["wardrobe"])
+
+@router.get("/items", response_model=WardrobeListResult, summary="List wardrobe items", description="Returns paginated wardrobe items for the authenticated user. Each item includes a signed R2 image URL valid for 1 hour.")
 @limiter.limit("60/minute")
 async def get_wardrobe_items(
     request: Request,
@@ -21,25 +24,26 @@ async def get_wardrobe_items(
     """Returns paginated wardrobe items for the authenticated user.
     Each item includes a signed R2 image URL valid for 1 hour."""
     result = await list_wardrobe_items(current_user, page, limit, category, status)
-    return {
-        "items": [item.__dict__ for item in result.items],
-        "total": result.total,
-        "page": result.page,
-        "limit": result.limit
-    }
+    return result
 
-@router.get("/items/{item_id}")
+@router.get("/items/{item_id}", response_model=WardrobeItem, summary="Get single wardrobe item", description="Returns a single wardrobe item. Returns 404 if not found or not owned by user.")
 async def get_single_wardrobe_item(item_id: uuid.UUID, current_user: CurrentUser):
     """Returns a single wardrobe item. Returns 404 if not found or not owned by user."""
     item = await get_wardrobe_item(current_user, item_id)
     if not item:
-        raise HTTPException(status_code=404, detail="Item not found")
-    return item.__dict__
+        raise HTTPException(
+            status_code=404, 
+            detail=ErrorResponse(code="item_not_found", message="Item not found").model_dump()
+        )
+    return item
 
-@router.delete("/items/{item_id}", status_code=204)
+@router.delete("/items/{item_id}", status_code=204, summary="Archive wardrobe item", description="Soft-deletes a wardrobe item (sets status = 'archived'). Archived items are excluded from all recommendation queries.")
 async def delete_wardrobe_item(item_id: uuid.UUID, current_user: CurrentUser):
     """Soft-deletes a wardrobe item (sets status = 'archived').
     Archived items are excluded from all recommendation queries."""
     success = await archive_wardrobe_item(current_user, item_id)
     if not success:
-        raise HTTPException(status_code=404, detail="Item not found or already archived")
+        raise HTTPException(
+            status_code=404, 
+            detail=ErrorResponse(code="item_not_found", message="Item not found or already archived").model_dump()
+        )

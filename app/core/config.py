@@ -1,6 +1,4 @@
 from pydantic_settings import BaseSettings
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-
 class Settings(BaseSettings):
     APP_NAME: str = "Vestimate"
     DEBUG: bool = True
@@ -16,6 +14,7 @@ class Settings(BaseSettings):
     R2_ACCESS_KEY_ID: str = ""
     R2_SECRET_ACCESS_KEY: str = ""
     R2_BUCKET_NAME: str = "vestimate-assets"
+    R2_PUBLIC_CDN_URL: str = "https://cdn.vestimate.app"
 
     # Modal GPU Inference Endpoints
     MODAL_ENDPOINT_SEGMENT: str = ""
@@ -46,17 +45,3 @@ class Settings(BaseSettings):
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 settings = Settings()
-
-# SQLAlchemy 2.0 Async Engine Initialization
-engine = create_async_engine(
-    settings.SUPABASE_DATABASE_URL,
-    echo=settings.DEBUG,
-    future=True,
-    connect_args={"statement_cache_size": 0}
-)
-
-async_session_maker = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False
-)

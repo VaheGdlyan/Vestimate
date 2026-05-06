@@ -16,12 +16,14 @@ import logfire
 from app.core.config import settings
 from app.core.auth import CurrentUser
 from app.services.storage import generate_signed_url
+from app.services.google_oauth_service import get_valid_access_token
 from typing import List, Optional
 from app.models.recommendation_schemas import (
     OutfitRecommendationResponse,
     OutfitItem,
     GarmentCandidate,
 )
+from app.models.schemas import ErrorResponse
 from app.services.context_aggregator import (
     build_context,
     build_occasion_string,
@@ -60,14 +62,19 @@ def _find_garment(garment_id: str, candidates) -> GarmentCandidate | None:
     "/today",
     response_model=OutfitRecommendationResponse,
     summary="Get today's outfit recommendation",
+    responses={
+        404: {
+            "model": ErrorResponse,
+            "description": "User not found or insufficient wardrobe items to generate a recommendation.",
+        }
+    },
 )
 @limiter.limit(settings.RATE_LIMIT_RECOMMENDATION)
 async def get_todays_recommendation(
     request: Request,
     current_user: CurrentUser,
-    city: str = Query(default="Yerevan", description="User's city for weather lookup"),
 ):
-    with logfire.span("recommendation.get_today", user_id=str(current_user), city=city):
+    with logfire.span("recommendation.get_today", user_id=str(current_user)):
         user_id = str(current_user)
 
         # ── Step 1: Fetch user data ───────────────────────────────────────────────
@@ -80,12 +87,20 @@ async def get_todays_recommendation(
             .execute()
         )
         if not user_result.data:
-            raise HTTPException(status_code=404, detail="User not found.")
+            raise HTTPException(
+                status_code=404, 
+                detail=ErrorResponse(code="user_not_found", message="User not found.").model_dump()
+            )
 
         user_data = user_result.data[0]
-        user_city = user_data.get("city") or city
-        oauth_token = user_data.get("google_oauth_token")
+        user_city = user_data.get("city") or "Yerevan"
 
+        oauth_token = user_data.get("google_oauth_token")
+        if oauth_token:
+            # Decrypt and refresh to obtain a valid access token for Google Calendar
+            oauth_token = await get_valid_access_token(user_id, oauth_token)
+        else:
+            oauth_token = None
         # ── Step 2: Build context ─────────────────────────────────────────────────
         context = await build_context(city=user_city, oauth_token=oauth_token)
         weather_bucket = compute_weather_bucket(context)
@@ -109,13 +124,10 @@ async def get_todays_recommendation(
         if not has_sufficient_candidates(candidates):
             raise HTTPException(
                 status_code=404,
-                detail={
-                    "code": "insufficient_wardrobe",
-                    "message": (
-                        "Add at least 1 top, 1 bottom, and 1 pair of shoes "
-                        "to receive a recommendation."
-                    ),
-                },
+                detail=ErrorResponse(
+                    code="insufficient_wardrobe",
+                    message="Add at least 1 top, 1 bottom, and 1 pair of shoes to receive a recommendation."
+                ).model_dump()
             )
 
         # ── Step 6: GPT outfit selection ──────────────────────────────────────────
@@ -223,6 +235,30 @@ async def get_recommendation_history(
     )
     
     history = []
+    
+    # Extract item IDs to fetch images
+    item_ids = set()
+    for row in result.data:
+        outfit_data = row.get("outfits")
+        if outfit_data:
+            for key in ["top_id", "bottom_id", "shoe_id"]:
+                if outfit_data.get(key):
+                    item_ids.add(str(outfit_data[key]))
+                    
+    # Fetch image keys and generate signed URLs
+    item_images = {}
+    if item_ids:
+        items_result = (
+            _supabase
+            .table("wardrobe_items")
+            .select("id, raw_image_key")
+            .in_("id", list(item_ids))
+            .execute()
+        )
+        for item in items_result.data:
+            if item.get("raw_image_key"):
+                item_images[str(item["id"])] = generate_signed_url(item["raw_image_key"])
+
     for row in result.data:
         outfit_data = row.get("outfits")
         if not outfit_data:
@@ -232,12 +268,16 @@ async def get_recommendation_history(
         rec_id = str(row.get("outfit_id", ""))
         gen_at = str(row.get("generated_at", ""))
         
+        top_id = str(outfit_data.get("top_id", ""))
+        bottom_id = str(outfit_data.get("bottom_id", ""))
+        shoe_id = str(outfit_data.get("shoe_id", ""))
+        
         history.append(OutfitRecommendationResponse(
             recommendation_id=rec_id,
             outfit={
-                "top":    OutfitItem(id=str(outfit_data.get("top_id", "")), image_url=None, category="top", material=None, fit=None, colors=[]),
-                "bottom": OutfitItem(id=str(outfit_data.get("bottom_id", "")), image_url=None, category="bottom", material=None, fit=None, colors=[]),
-                "shoes":  OutfitItem(id=str(outfit_data.get("shoe_id", "")), image_url=None, category="shoes", material=None, fit=None, colors=[]),
+                "top":    OutfitItem(id=top_id, image_url=item_images.get(top_id), category="top", material=None, fit=None, colors=[]),
+                "bottom": OutfitItem(id=bottom_id, image_url=item_images.get(bottom_id), category="bottom", material=None, fit=None, colors=[]),
+                "shoes":  OutfitItem(id=shoe_id, image_url=item_images.get(shoe_id), category="shoes", material=None, fit=None, colors=[]),
             },
             stylist_note=outfit_data.get("stylist_note", "No note available"),
             context_summary={

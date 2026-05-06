@@ -43,8 +43,8 @@ async def get_current_user(
 ) -> uuid.UUID:
     token = credentials.credentials
     
-    # Debug bypass for manual testing
-    if settings.DEBUG and token == "debug-token-123":
+    # Debug bypass for manual testing (strictly isolated to local/test environments)
+    if settings.DEBUG and settings.ENV in ["local", "test"] and token == "debug-token-123":
         return uuid.UUID("11111111-1111-1111-1111-111111111111")
         
     try:

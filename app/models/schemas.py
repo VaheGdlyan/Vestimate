@@ -1,5 +1,10 @@
 from pydantic import BaseModel
+from typing import Optional, Any
 
+class ErrorResponse(BaseModel):
+    code: str
+    message: str
+    detail: Optional[Any] = None
 class TaskStatusResponse(BaseModel):
     task_id: str
     status: str

@@ -51,6 +51,7 @@ def ingest_garment(self, item_id: str, raw_object_key: str, user_id: str):
                 # Step 5: Embed
                 with logfire.span("worker.embedding", item_id=item_id):
                     resp = client.post(modal_embed_url, content=segmented_png_bytes, headers={"Content-Type": "application/octet-stream"})
+                    resp.raise_for_status()
                     ml_results = resp.json()
                 
                 embedding = ml_results["embedding"]
@@ -63,7 +64,7 @@ def ingest_garment(self, item_id: str, raw_object_key: str, user_id: str):
                 with logfire.span("worker.db_upsert", item_id=item_id):
                     from supabase import create_client
                     supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
-                    image_url = f"https://cdn.vestimate.app/{segmented_key}"
+                    image_url = f"{settings.R2_PUBLIC_CDN_URL}/{segmented_key}"
                     
                     supabase.table("wardrobe_items").update({
                         "embedding": embedding, "status": "active", "category": tags["category"]["value"],

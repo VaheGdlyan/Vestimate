@@ -1,26 +1,24 @@
 import uuid
 from typing import Optional
-from dataclasses import dataclass
+from pydantic import BaseModel
 import asyncpg
 from app.core.config import settings
 
-@dataclass
-class WardrobeItem:
+class WardrobeItem(BaseModel):
     id: uuid.UUID
     image_url: str
-    category: Optional[str]
-    material: Optional[str]
-    fit: Optional[str]
-    colors: list[str]
-    item_name: Optional[str]
+    category: Optional[str] = None
+    material: Optional[str] = None
+    fit: Optional[str] = None
+    colors: list[str] = []
+    item_name: Optional[str] = None
     needs_review: bool
     status: str
-    last_worn_at: Optional[str]
+    last_worn_at: Optional[str] = None
     wear_count: int
     created_at: str
 
-@dataclass
-class WardrobeListResult:
+class WardrobeListResult(BaseModel):
     items: list[WardrobeItem]
     total: int
     page: int

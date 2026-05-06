@@ -52,7 +52,13 @@ async def generate_recommendation_for_user(user_id: str, city: Optional[str] = N
         
         user_data = user_result.data[0]
         user_city = user_data.get("city") or city or "Yerevan"
+from app.services.google_oauth_service import get_valid_access_token
+
         oauth_token = user_data.get("google_oauth_token")
+        if oauth_token:
+            oauth_token = await get_valid_access_token(user_id, oauth_token)
+        else:
+            oauth_token = None
 
         # 2. Build context
         context = await build_context(city=user_city, oauth_token=oauth_token)
@@ -119,6 +125,10 @@ async def generate_recommendation_for_user(user_id: str, city: Optional[str] = N
             "cache_key": cache_key, "weather_snapshot": context.weather.model_dump(),
             "was_cache_hit": False, "fallback_used": fallback_used
         }).execute()
+
+        supabase.table("users").update({
+            "last_active_at": generated_at
+        }).eq("id", user_id).execute()
 
         set_cached_recommendation(cache_key, response_data.model_dump())
         return response_data

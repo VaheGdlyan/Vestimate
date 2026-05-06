@@ -41,7 +41,7 @@ async def embed_and_tag(request: Request) -> Dict[str, Any]:
     # NOTE: In actual production, models should be pre-downloaded to the image 
     # using modal.Image...run_commands(...) to prevent cold-start downloads.
     # We use standard CLIP here as a stand-in for the domain-specific FashionCLIP.
-    model_id = "openai/clip-vit-base-patch16"
+    model_id = "patrickjohncyh/fashion-clip"
     processor = CLIPProcessor.from_pretrained(model_id)
     model = CLIPModel.from_pretrained(model_id)
     
@@ -52,10 +52,11 @@ async def embed_and_tag(request: Request) -> Dict[str, Any]:
     candidate_categories = ["top", "bottom", "outerwear", "shoes", "accessory", "dress"]
     candidate_fits = ["slim", "relaxed", "regular", "oversized"]
     candidate_materials = ["cotton", "wool", "denim", "leather", "polyester", "silk"]
+    candidate_colors = ["black", "white", "navy", "red", "beige", "gray", "brown", "blue", "green", "pink", "purple", "yellow", "orange"]
     
     # Process inputs for zero-shot classification & embedding
     inputs = processor(
-        text=candidate_categories + candidate_fits + candidate_materials, 
+        text=candidate_categories + candidate_fits + candidate_materials + candidate_colors, 
         images=image, 
         return_tensors="pt", 
         padding=True
@@ -71,20 +72,29 @@ async def embed_and_tag(request: Request) -> Dict[str, Any]:
     
     # We slice the probabilities corresponding to our candidate lists
     cat_probs = probs[:len(candidate_categories)]
-    fit_probs = probs[len(candidate_categories):len(candidate_categories)+len(candidate_fits)]
-    mat_probs = probs[-len(candidate_materials):]
+    fit_start = len(candidate_categories)
+    fit_probs = probs[fit_start:fit_start+len(candidate_fits)]
+    mat_start = fit_start + len(candidate_fits)
+    mat_probs = probs[mat_start:mat_start+len(candidate_materials)]
+    col_probs = probs[-len(candidate_colors):]
     
     # Extract highest probability matches
     cat_max_idx = cat_probs.index(max(cat_probs))
     fit_max_idx = fit_probs.index(max(fit_probs))
     mat_max_idx = mat_probs.index(max(mat_probs))
     
+    # Top 2 colors
+    col_probs_with_idx = [(p, idx) for idx, p in enumerate(col_probs)]
+    col_probs_with_idx.sort(reverse=True, key=lambda x: x[0])
+    top_colors = [candidate_colors[idx] for _, idx in col_probs_with_idx[:2]]
+    
     return {
         "embedding": embedding,
         "tags": {
             "category": {"value": candidate_categories[cat_max_idx], "confidence": round(cat_probs[cat_max_idx], 3)},
             "fit": {"value": candidate_fits[fit_max_idx], "confidence": round(fit_probs[fit_max_idx], 3)},
-            "material": {"value": candidate_materials[mat_max_idx], "confidence": round(mat_probs[mat_max_idx], 3)}
+            "material": {"value": candidate_materials[mat_max_idx], "confidence": round(mat_probs[mat_max_idx], 3)},
+            "colors": top_colors
         }
     }
 
@@ -93,7 +103,7 @@ class TextEmbedInput(BaseModel):
     text: str = ""
 
 
-@app.function(image=image_clip, gpu="T4", timeout=30)
+@app.function(image=image_text, gpu="T4", timeout=30)
 @modal.fastapi_endpoint(method="POST")
 async def text_embed(body: TextEmbedInput) -> Dict[str, Any]:
     """
