@@ -1,2 +1,2 @@
-# **Something big coming soon ...**
+# **Something big is coming soon ...**
  
