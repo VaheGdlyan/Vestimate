@@ -80,18 +80,32 @@ async def get_wardrobe_items(category: Optional[str] = Query(None)):
 def get_recommendation():
     all_items = get_items_from_folder()
     if not all_items:
-        return None
+        return {"item_ids": [], "stylist_notes": "No clothes found in folder!"}
         
-    # Simple logic: suggest a random shirt
     tops = [i for i in all_items if i["category"] == "tops"]
-    suggested = tops[0] if tops else all_items[0]
+    bottoms = [i for i in all_items if i["category"] == "bottoms"]
+    shoes = [i for i in all_items if i["category"] == "footwear"]
     
+    # Pick IDs
+    item_ids = []
+    if tops: item_ids.append(tops[0]["id"])
+    if bottoms: item_ids.append(bottoms[0]["id"])
+    if shoes: item_ids.append(shoes[0]["id"])
+    
+    if not item_ids:
+        return {"item_ids": [], "stylist_notes": "Try adding more clothes to see a look!"}
+
     return {
-        "id": "rec-real",
-        "headline": "PERFECT MATCH",
-        "reasoning": f"This {suggested['item_name']} looks great today. It's sunny outside!",
-        "items": [suggested]
+        "item_ids": item_ids,
+        "stylist_notes": f"YOUR SIGNATURE LOOK: This combination is perfect for a 20°C sunny day. Based on your {len(all_items)} items."
     }
+
+@app.post("/v1/feedback")
+async def receive_feedback(data: dict):
+    item_id = data.get("item_id")
+    action = data.get("action")
+    print(f"--- FEEDBACK RECEIVED: Item {item_id} was {action} ---")
+    return {"status": "success", "message": f"Recorded {action} for items"}
 
 if __name__ == "__main__":
     print("\n" + "="*50)

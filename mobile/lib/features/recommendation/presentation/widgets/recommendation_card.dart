@@ -79,9 +79,17 @@ class RecommendationCard extends ConsumerWidget {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     HapticFeedback.lightImpact();
-                    // Send feedback
+                    final repository = ref.read(wardrobeRepositoryProvider);
+                    for (final item in recommendation.items) {
+                      await repository.sendFeedback(item.id, 'skipped');
+                    }
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('RECOМMENDATION SKIPPED')),
+                      );
+                    }
                   },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: VestimateColors.secondary,
@@ -94,9 +102,20 @@ class RecommendationCard extends ConsumerWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     HapticFeedback.mediumImpact();
-                    // Send feedback
+                    final repository = ref.read(wardrobeRepositoryProvider);
+                    for (final item in recommendation.items) {
+                      await repository.sendFeedback(item.id, 'worn');
+                    }
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('OUTFIT SAVED TO HISTORY!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: VestimateColors.accent,
