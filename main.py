@@ -1,31 +1,101 @@
-from fastapi import FastAPI
-from app.api.v1 import api_router
-from slowapi import _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from app.core.rate_limit import limiter
+import uvicorn
+import uuid
+import os
+from fastapi import FastAPI, Query
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from typing import Optional
 
 app = FastAPI(title="Vestimate API", version="0.1.0")
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-from app.api.v1.endpoints.wardrobe_read import router as wardrobe_read_router
-from app.api.v1.endpoints.feedback import router as feedback_router
-from app.api.v1.endpoints.users import router as users_router
-from app.api.v1.endpoints.google_oauth import router as google_oauth_router
-from app.core.observability import init_all
+# 1. CORS SETUP
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-init_all(app)
+# 2. MOUNT STATIC FILES (To serve your actual photos)
+IMAGES_DIR = "test_images2"
+if os.path.exists(IMAGES_DIR):
+    app.mount("/static_clothes", StaticFiles(directory=IMAGES_DIR), name="static_clothes")
 
-@app.on_event("startup")
-async def startup():
-    pass # Other async startup tasks can go here
+def get_category_from_filename(filename: str) -> str:
+    f = filename.lower()
+    if "shirt" in f or "hoodie" in f:
+        return "tops"
+    if "trs" in f or "pants" in f or "jeans" in f:
+        return "bottoms"
+    if "shoes" in f or "sneakers" in f:
+        return "footwear"
+    return "outerwear"
 
-app.include_router(api_router, prefix="/v1")
-app.include_router(wardrobe_read_router, prefix="/v1/wardrobe", tags=["wardrobe"])
-app.include_router(feedback_router, prefix="/v1/feedback", tags=["feedback"])
-app.include_router(users_router, prefix="/v1/users", tags=["users"])
-app.include_router(google_oauth_router, prefix="/v1/users/me/google-oauth", tags=["google-oauth"])
+def get_items_from_folder():
+    items = []
+    if not os.path.exists(IMAGES_DIR):
+        return items
+        
+    for filename in os.listdir(IMAGES_DIR):
+        if filename.lower().endswith((".png", ".jpg", ".jpeg")):
+            category = get_category_from_filename(filename)
+            items.append({
+                "id": filename,
+                "segmented_image_url": f"http://localhost:8888/static_clothes/{filename}",
+                "category": category,
+                "item_name": filename.replace("_", " ").split(".")[0].title()
+            })
+    return items
 
-@app.get("/health")
+@app.get("/v1/health")
 def health():
     return {"status": "ok"}
+
+@app.get("/v1/wardrobe/items")
+async def get_wardrobe_items(category: Optional[str] = Query(None)):
+    print(f"--- FETCHING REAL WARDROBE: {category or 'All'} ---")
+    
+    all_items = get_items_from_folder()
+    
+    filtered = all_items
+    if category:
+        filtered = [c for c in all_items if c["category"] == category.lower()]
+    
+    return {
+        "items": [
+            {
+                "id": c["id"],
+                "segmented_image_url": c["segmented_image_url"],
+                "category": c["category"],
+                "status": "active",
+                "metadata": {"name": c["item_name"]}
+            }
+            for c in filtered
+        ],
+        "total": len(filtered)
+    }
+
+@app.get("/v1/recommendations/today")
+def get_recommendation():
+    all_items = get_items_from_folder()
+    if not all_items:
+        return None
+        
+    # Simple logic: suggest a random shirt
+    tops = [i for i in all_items if i["category"] == "tops"]
+    suggested = tops[0] if tops else all_items[0]
+    
+    return {
+        "id": "rec-real",
+        "headline": "PERFECT MATCH",
+        "reasoning": f"This {suggested['item_name']} looks great today. It's sunny outside!",
+        "items": [suggested]
+    }
+
+if __name__ == "__main__":
+    print("\n" + "="*50)
+    print("--- VESTIMATE REAL-IMAGE MODE ACTIVE ---")
+    print(f"--- FOLDER: {IMAGES_DIR} ---")
+    print("="*50 + "\n")
+    uvicorn.run(app, host="0.0.0.0", port=8888)
