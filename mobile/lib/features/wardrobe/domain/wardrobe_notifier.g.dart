@@ -6,7 +6,7 @@ part of 'wardrobe_notifier.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$filteredWardrobeHash() => r'6fe2ea5ed1bafb412fdb7b6b8f79c8f015fd3b0b';
+String _$filteredWardrobeHash() => r'87c1c758e3e7bb42f2ab0b735acbcad4fb34fe3f';
 
 /// See also [filteredWardrobe].
 @ProviderFor(filteredWardrobe)
@@ -24,7 +24,7 @@ final filteredWardrobeProvider =
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef FilteredWardrobeRef = AutoDisposeProviderRef<List<WardrobeItem>>;
-String _$wardrobeHash() => r'f5431c3b83478dacbf8942c3595dfa4b3e639ce2';
+String _$wardrobeHash() => r'6968607d18036a926f15f37da8f670b2eeaa93c1';
 
 /// See also [Wardrobe].
 @ProviderFor(Wardrobe)

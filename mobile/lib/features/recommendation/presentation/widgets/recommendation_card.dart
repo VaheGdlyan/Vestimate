@@ -17,64 +17,94 @@ class RecommendationCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.all(VestimateSpacing.md),
+      padding: const EdgeInsets.all(VestimateSpacing.lg),
       decoration: BoxDecoration(
-        color: VestimateColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: VestimateColors.accent.withOpacity(0.1),
-          width: 1,
-        ),
+        color: VestimateColors.card,
+        borderRadius: BorderRadius.circular(VestimateRadius.card),
+        border: Border.all(color: VestimateColors.accent.withOpacity(0.15), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Header ────────────────────────────────────────────────────
           Row(
             children: [
-              const Icon(Icons.auto_awesome, color: VestimateColors.accent, size: 20),
+              const Icon(Icons.auto_awesome, color: VestimateColors.accent, size: 18),
               const SizedBox(width: 8),
               Text(
                 'TODAY\'S OUTFIT',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  letterSpacing: 2,
-                  fontWeight: FontWeight.bold,
-                  color: VestimateColors.accent,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      letterSpacing: 2,
+                      fontWeight: FontWeight.w700,
+                      color: VestimateColors.accent,
+                    ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: VestimateColors.accent.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(VestimateRadius.chip),
+                  border: Border.all(color: VestimateColors.accent.withOpacity(0.2)),
+                ),
+                child: const Text(
+                  '✨ AI STYLIST',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1,
+                    color: VestimateColors.accent,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+
+          const SizedBox(height: VestimateSpacing.md),
+
+          // ── Outfit Items ──────────────────────────────────────────────
           SizedBox(
-            height: 180,
+            height: 170,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: recommendation.items.length,
               separatorBuilder: (context, index) => const SizedBox(width: 12),
               itemBuilder: (context, index) {
                 return SizedBox(
-                  width: 135,
+                  width: 130,
                   child: GarmentCard(item: recommendation.items[index]),
                 );
               },
             ),
           ),
-          const SizedBox(height: 20),
-          Text(
-            'Stylist Notes',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.bold,
+
+          const SizedBox(height: VestimateSpacing.md),
+
+          // ── Stylist Notes ─────────────────────────────────────────────
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(VestimateSpacing.sm),
+            decoration: BoxDecoration(
+              color: VestimateColors.surface,
+              borderRadius: BorderRadius.circular(VestimateRadius.chip),
+            ),
+            child: Text(
+              recommendation.stylistNotes,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: VestimateColors.secondary,
+                    height: 1.5,
+                    fontSize: 12,
+                  ),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            recommendation.stylistNotes,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: VestimateColors.secondary,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 24),
+
+          const SizedBox(height: VestimateSpacing.md),
+
+          // ── Action Buttons ────────────────────────────────────────────
           Row(
             children: [
               Expanded(
@@ -86,21 +116,15 @@ class RecommendationCard extends ConsumerWidget {
                       await repository.sendFeedback(item.id, 'skipped');
                     }
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('RECOМMENDATION SKIPPED')),
-                      );
+                      ref.invalidate(todayRecommendationProvider);
                     }
                   },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: VestimateColors.secondary,
-                    side: const BorderSide(color: Colors.white10),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: const Text('SKIPPED'),
+                  child: const Text('SKIP'),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: VestimateSpacing.sm),
               Expanded(
+                flex: 2,
                 child: ElevatedButton(
                   onPressed: () async {
                     HapticFeedback.mediumImpact();
@@ -111,19 +135,14 @@ class RecommendationCard extends ConsumerWidget {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('OUTFIT SAVED TO HISTORY!'),
-                          backgroundColor: Colors.green,
+                          content: Text('OUTFIT SAVED TO HISTORY ✓'),
+                          backgroundColor: VestimateColors.success,
                         ),
                       );
+                      ref.invalidate(todayRecommendationProvider);
                     }
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: VestimateColors.accent,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    elevation: 0,
-                  ),
-                  child: const Text('WORN TODAY'),
+                  child: const Text('WEAR THIS'),
                 ),
               ),
             ],

@@ -9,9 +9,12 @@ import 'core/theme/theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Initialize Hive boxes
   await Hive.initFlutter();
   await Hive.openBox('wardrobe_cache');
+  await Hive.openBox('feedback_queue');
   
+  // Initialize Supabase Auth
   await Supabase.initialize(
     url: AppConfig.supabaseUrl,
     anonKey: AppConfig.supabaseAnonKey,

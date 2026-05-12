@@ -41,6 +41,14 @@ class TaskState {
 }
 
 @riverpod
+class ActiveTaskId extends _$ActiveTaskId {
+  @override
+  String? build() => null;
+
+  void setTaskId(String? taskId) => state = taskId;
+}
+
+@riverpod
 class TaskPolling extends _$TaskPolling {
   Timer? _timer;
 

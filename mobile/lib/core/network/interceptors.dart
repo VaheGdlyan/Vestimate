@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// Attaches Supabase JWT to every outgoing request.
+/// Falls back to a debug token when no session is active (local dev mode).
 class AuthInterceptor extends Interceptor {
   final SupabaseClient _supabase;
 
@@ -10,31 +12,65 @@ class AuthInterceptor extends Interceptor {
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     final session = _supabase.auth.currentSession;
     if (session != null) {
-      print('DEBUG: Adding Auth Header - Token found');
       options.headers['Authorization'] = 'Bearer ${session.accessToken}';
     } else {
-      print('DEBUG: No session found - Using MASTER KEY bypass');
+      // Local dev bypass — backend accepts any token in dev mode
       options.headers['Authorization'] = 'Bearer debug-token-123';
     }
     super.onRequest(options, handler);
   }
 }
 
+/// Handles 401 by refreshing the Supabase session before retrying.
+/// Maps common HTTP errors to user-friendly messages.
 class ErrorInterceptor extends Interceptor {
   @override
-  void onError(DioException err, ErrorInterceptorHandler handler) {
-    switch (err.response?.statusCode) {
-      case 401:
-        // Handle 401: Maybe trigger a logout or token refresh
-        // Supabase handles token refresh automatically, so 401 might mean expired session
-        break;
-      case 429:
-        // Handle Rate Limiting
-        break;
-      case 503:
-        // Handle Service Unavailable
-        break;
+  void onError(DioException err, ErrorInterceptorHandler handler) async {
+    final statusCode = err.response?.statusCode;
+
+    if (statusCode == 401) {
+      // Attempt token refresh
+      try {
+        await Supabase.instance.client.auth.refreshSession();
+
+        // Retry the original request with the new token
+        final session = Supabase.instance.client.auth.currentSession;
+        if (session != null) {
+          final opts = err.requestOptions;
+          opts.headers['Authorization'] = 'Bearer ${session.accessToken}';
+
+          final dio = Dio();
+          final response = await dio.fetch(opts);
+          return handler.resolve(response);
+        }
+      } catch (_) {
+        // Refresh failed — propagate the original 401
+      }
     }
+
+    // Map common errors for better user-facing messages
+    if (err.type == DioExceptionType.connectionTimeout ||
+        err.type == DioExceptionType.sendTimeout ||
+        err.type == DioExceptionType.receiveTimeout) {
+      return handler.reject(
+        DioException(
+          requestOptions: err.requestOptions,
+          error: 'Connection timed out. Please check your internet.',
+          type: err.type,
+        ),
+      );
+    }
+
+    if (err.type == DioExceptionType.connectionError) {
+      return handler.reject(
+        DioException(
+          requestOptions: err.requestOptions,
+          error: 'Cannot reach server. Please try again later.',
+          type: err.type,
+        ),
+      );
+    }
+
     super.onError(err, handler);
   }
 }

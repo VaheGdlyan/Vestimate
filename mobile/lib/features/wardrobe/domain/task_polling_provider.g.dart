@@ -6,6 +6,21 @@ part of 'task_polling_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
+String _$activeTaskIdHash() => r'4c1dd20c139e69b5d6dc7707a52acaf886b7b079';
+
+/// See also [ActiveTaskId].
+@ProviderFor(ActiveTaskId)
+final activeTaskIdProvider =
+    AutoDisposeNotifierProvider<ActiveTaskId, String?>.internal(
+  ActiveTaskId.new,
+  name: r'activeTaskIdProvider',
+  debugGetCreateSourceHash:
+      const bool.fromEnvironment('dart.vm.product') ? null : _$activeTaskIdHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+typedef _$ActiveTaskId = AutoDisposeNotifier<String?>;
 String _$taskPollingHash() => r'3d2569bedd11cb1f9cb685e055e1608a65672f48';
 
 /// Copied from Dart SDK
