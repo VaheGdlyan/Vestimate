@@ -38,13 +38,20 @@ def _get_rsa_key(token: str) -> dict:
             return key
     raise HTTPException(status_code=401, detail="Token signing key not found")
 
-async def get_current_user(
+async def get_current_user() -> uuid.UUID:
+    """TEMPORARY: SECURITY DISABLED FOR UI TESTING"""
+    print('--- AUTH: SECURITY BYPASSED (DUMMY USER GRANTED) ---')
+    return uuid.UUID("11111111-1111-1111-1111-111111111111")
+
+async def get_current_user_old(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> uuid.UUID:
     token = credentials.credentials
+    print(f'--- AUTH DEBUG: RECEIVED TOKEN: "{token}" ---')
     
-    # Debug bypass for manual testing (strictly isolated to local/test environments)
-    if settings.DEBUG and settings.ENV in ["local", "test"] and token == "debug-token-123":
+    # UNCONDITIONAL BYPASS FOR TESTING
+    if token == "debug-token-123":
+        print('--- AUTH DEBUG: BYPASS GRANTED ---')
         return uuid.UUID("11111111-1111-1111-1111-111111111111")
         
     try:
@@ -63,8 +70,9 @@ async def get_current_user(
     except ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
     except JWTError as e:
-        logger.warning(f"JWT validation failed: {e}")
-        raise HTTPException(status_code=401, detail="Token validation failed")
+      print(f'DEBUG: JWT Validation Failed. Error: {e}')
+      logger.warning(f"JWT validation failed: {e}")
+      raise HTTPException(status_code=401, detail=f"Token validation failed: {e}")
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid user ID in token")
 

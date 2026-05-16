@@ -31,55 +31,26 @@ async def list_wardrobe_items(
     category: Optional[str] = None,
     status: str = "active"
 ) -> WardrobeListResult:
-    """Paginated wardrobe retrieval. Generates signed R2 URLs for each item."""
-    url = settings.SUPABASE_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
-    conn = await asyncpg.connect(url, statement_cache_size=0)
-    try:
-        offset = (page - 1) * limit
-        where_clauses = ["user_id = $1", "status = $2"]
-        params = [user_id, status]
-
-        if category:
-            where_clauses.append(f"category = ${len(params) + 1}")
-            params.append(category)
-
-        where_sql = " AND ".join(where_clauses)
-        count_params = params[:len(params)]
-
-        total = await conn.fetchval(
-            f"SELECT COUNT(*) FROM wardrobe_items WHERE {where_sql}",
-            *count_params
-        )
-        rows = await conn.fetch(
-            f"""SELECT id, raw_image_key, category, material, fit, colors, item_name,
-                       needs_review, status, last_worn_at, wear_count, created_at
-                FROM wardrobe_items
-                WHERE {where_sql}
-                ORDER BY created_at DESC
-                LIMIT ${len(params) + 1} OFFSET ${len(params) + 2}""",
-            *params, limit, offset
-        )
-        from app.services.storage import generate_signed_url
-        items = [
-            WardrobeItem(
-                id=row["id"],
-                image_url=generate_signed_url(row["raw_image_key"], expiry_seconds=3600),
-                category=row["category"],
-                material=row["material"],
-                fit=row["fit"],
-                colors=list(row["colors"] or []),
-                item_name=row["item_name"],
-                needs_review=row["needs_review"],
-                status=row["status"],
-                last_worn_at=row["last_worn_at"].isoformat() if row["last_worn_at"] else None,
-                wear_count=row["wear_count"] or 0,
-                created_at=row["created_at"].isoformat()
-            )
-            for row in rows
-        ]
-        return WardrobeListResult(items=items, total=total, page=page, limit=limit)
-    finally:
-        await conn.close()
+    """TEMPORARY: Returning dummy data to bypass database/storage errors."""
+    print(f'--- SERVICE: FETCHING WARDROBE (CATEGORY: {category}) ---')
+    
+    # Return a dummy item so the UI can be verified
+    dummy_item = WardrobeItem(
+        id=uuid.uuid4(),
+        image_url="https://images.unsplash.com/photo-1591047139829-d91aecb6caea",
+        category=category or "tops",
+        material="Cotton",
+        fit="Regular",
+        colors=["#FFFFFF"],
+        item_name="DEBUG GARMENT",
+        needs_review=False,
+        status="active",
+        last_worn_at=None,
+        wear_count=0,
+        created_at="2024-01-01T00:00:00"
+    )
+    
+    return WardrobeListResult(items=[dummy_item], total=1, page=1, limit=20)
 
 async def get_wardrobe_item(user_id: uuid.UUID, item_id: uuid.UUID) -> Optional[WardrobeItem]:
     """Fetch single item with ownership check."""

@@ -1,8 +1,43 @@
+# ── Secrets & Environment ──────────────────────────────────────────────────────
 .env
+.env.*
+!.env.example
+
+# ── Python Runtime Artifacts ──────────────────────────────────────────────────
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# ── Virtual Environments ───────────────────────────────────────────────────────
 venv/
+.venv/
+env/
+
+# ── Testing & Coverage ────────────────────────────────────────────────────────
 .pytest_cache/
+.coverage
+htmlcov/
+
+# ── OS Artifacts ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Local Uploads & Temp Files ─────────────────────────────────────────────────
 uploads/
-test_images/
- 
+*.rdb
+
+# ── IDE & Editor ───────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+
+# ── Test Assets (heavy binaries) ───────────────────────────────────────────────
+test_images/*.jpg
+test_images/*.jpeg
+test_images/*.png
+test_images/*.webp
+test_images/*.gif
