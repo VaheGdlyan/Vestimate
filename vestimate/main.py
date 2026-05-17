@@ -175,51 +175,77 @@ _WMO_CONDITIONS: dict[int, tuple[str, str]] = {
     99: ("Thunderstorm w/ Heavy Hail", "⛈"),
 }
 
-# Default city coordinates (Baku, Azerbaijan — based on user's timezone UTC+4)
-_DEFAULT_LAT = 40.4093
-_DEFAULT_LON = 49.8671
+from app.core.config import settings
+
+# Default city if user auth not provided
 _DEFAULT_CITY = "Baku"
+
+from app.core.auth import CurrentUser
+import asyncpg
+
+async def _get_db_connection() -> asyncpg.Connection:
+    dsn = settings.SUPABASE_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+    return await asyncpg.connect(dsn)
 
 @app.get("/v1/weather")
 async def get_weather(
-    lat: float = Query(default=_DEFAULT_LAT, description="Latitude"),
-    lon: float = Query(default=_DEFAULT_LON, description="Longitude"),
-    city: str = Query(default=_DEFAULT_CITY, description="City name for display"),
+    current_user: CurrentUser,
 ):
     """
-    Fetch current weather from Open-Meteo (free, no API key).
-    Gracefully degrades if Open-Meteo is unreachable.
+    Fetch current weather from OpenWeatherMap (using env key) or gracefully degrade.
     """
     try:
-        url = (
-            f"https://api.open-meteo.com/v1/forecast"
-            f"?latitude={lat}&longitude={lon}"
-            f"&current=temperature_2m,weathercode,windspeed_10m,relative_humidity_2m"
-            f"&temperature_unit=celsius&windspeed_unit=kmh&timezone=auto"
-        )
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            data = resp.json()
+        user_id = str(current_user)
+        conn = await _get_db_connection()
+        try:
+            row = await conn.fetchrow("SELECT city FROM users WHERE id = $1", user_id)
+            city = row["city"] if row and row["city"] else _DEFAULT_CITY
+        finally:
+            await conn.close()
 
-        current = data["current"]
-        wmo_code = current.get("weathercode", 0)
-        condition_label, emoji = _WMO_CONDITIONS.get(wmo_code, ("Unknown", "🌡"))
+        if settings.OPENWEATHERMAP_API_KEY:
+            url = (
+                f"https://api.openweathermap.org/data/2.5/weather"
+                f"?q={city}&appid={settings.OPENWEATHERMAP_API_KEY}&units=metric"
+            )
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                data = resp.json()
 
-        return {
-            "city": city,
-            "temp_celsius": round(current["temperature_2m"]),
-            "condition": condition_label,
-            "emoji": emoji,
-            "wind_kmh": round(current.get("windspeed_10m", 0)),
-            "humidity_pct": current.get("relative_humidity_2m"),
-            "available": True,
-        }
+            temp = data["main"]["temp"]
+            condition_id = data["weather"][0]["id"]
+            wind = data.get("wind", {}).get("speed", 0.0)
+
+            # Map condition ID to emoji
+            if condition_id < 600:
+                condition_label, emoji = "Rain", "🌦"
+            elif condition_id < 700:
+                condition_label, emoji = "Snow", "🌨"
+            elif condition_id < 800:
+                condition_label, emoji = "Cloudy", "☁️"
+            elif condition_id == 800:
+                condition_label, emoji = "Clear", "☀️"
+            else:
+                condition_label, emoji = "Cloudy", "☁️"
+
+            return {
+                "city": city,
+                "temp_celsius": round(temp),
+                "condition": condition_label,
+                "emoji": emoji,
+                "wind_kmh": round(wind * 3.6),
+                "humidity_pct": data["main"]["humidity"],
+                "available": True,
+            }
+        else:
+            log.warning("OPENWEATHERMAP_API_KEY not set. Degrading weather gracefully.")
+            raise Exception("No API Key")
+
     except Exception as e:
         log.warning(f"Weather fetch failed: {e}")
-        # Graceful degradation — return unavailable payload, not an error
         return {
-            "city": city,
+            "city": city if 'city' in locals() else _DEFAULT_CITY,
             "temp_celsius": None,
             "condition": "unavailable",
             "emoji": "🌡",
@@ -487,10 +513,19 @@ async def receive_feedback(data: dict):
 # ══════════════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
+    import os
+    import sys
+    
+    # Ensure uvicorn reloader subprocesses can resolve the 'vestimate' module
+    parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    sys.path.insert(0, parent_dir)
+    os.environ["PYTHONPATH"] = parent_dir + os.pathsep + os.environ.get("PYTHONPATH", "")
+
     log.info("=" * 60)
     log.info("  VESTIMATE API v3.0 — Local Dev Mode")
     log.info(f"  Images: ./{IMAGES_DIR}/ ({len(get_items_from_folder())} items)")
     log.info(f"  DB Connected: {DB_CONNECTED}")
     log.info("  Weather: Open-Meteo (free, no API key)")
     log.info("=" * 60)
-    uvicorn.run(app, host="0.0.0.0", port=8888, reload=True)
+    # Using import string "vestimate.main:app" because reload=True requires it.
+    uvicorn.run("vestimate.main:app", host="0.0.0.0", port=8888, reload=True)

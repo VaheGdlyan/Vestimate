@@ -41,7 +41,10 @@ async def get_query_vector(occasion_text: str) -> list[float]:
                 json={"text": occasion_text},
             )
             response.raise_for_status()
-            embedding = response.json()["embedding"]
+            embedding = response.json().get("embedding")
+            
+            if not isinstance(embedding, list) or len(embedding) != 512:
+                raise ValueError(f"Malformed embedding: Expected 512-dim vector, got shape {len(embedding) if isinstance(embedding, list) else type(embedding)}")
 
         _vector_cache.setex(cache_key, VECTOR_CACHE_TTL, json.dumps(embedding))
         return embedding
@@ -51,4 +54,4 @@ async def get_query_vector(occasion_text: str) -> list[float]:
         logging.getLogger(__name__).error(
             f"Vector encoding failed for '{occasion_text[:50]}': {e}"
         )
-        return [0.0] * 512
+        raise e

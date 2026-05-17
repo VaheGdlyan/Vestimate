@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -162,10 +161,9 @@ class WardrobeGalleryScreen extends ConsumerWidget {
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
     if (image == null) return;
 
-    final file = File(image.path);
     try {
       final repo = ref.read(wardrobeRepositoryProvider);
-      final result = await repo.uploadGarment(file);
+      final result = await repo.uploadGarment(image);
       final taskId = result['task_id'];
       ref.read(activeTaskIdProvider.notifier).setTaskId(taskId);
     } catch (e) {

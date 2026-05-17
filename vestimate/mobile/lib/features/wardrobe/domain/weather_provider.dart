@@ -1,5 +1,5 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:vestimate/features/wardrobe/data/wardrobe_repository.dart';
+import 'package:vestimate/core/network/dio_provider.dart';
 
 part 'weather_provider.g.dart';
 

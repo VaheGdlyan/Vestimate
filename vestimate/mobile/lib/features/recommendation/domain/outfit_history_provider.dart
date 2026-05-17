@@ -1,5 +1,5 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:vestimate/features/wardrobe/data/wardrobe_repository.dart';
+import 'package:vestimate/core/network/dio_provider.dart';
 import 'package:vestimate/features/wardrobe/domain/wardrobe_notifier.dart';
 
 part 'outfit_history_provider.g.dart';
@@ -58,10 +58,10 @@ class OutfitHistory extends _$OutfitHistory {
   Future<List<SavedOutfit>> _fetchHistory() async {
     final dio = ref.read(dioProvider);
     final response = await dio.get(
-      '/outfits/history',
+      '/outfits',
       queryParameters: {'limit': 50, 'offset': 0},
     );
-    final outfits = (response.data['outfits'] as List<dynamic>? ?? []);
+    final outfits = (response.data as List<dynamic>? ?? []);
     return outfits
         .map((e) => SavedOutfit.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -74,8 +74,9 @@ class OutfitHistory extends _$OutfitHistory {
   }) async {
     final dio = ref.read(dioProvider);
     await dio.post('/outfits', data: {
+      'label': 'Saved Look',
       'item_ids': itemIds,
-      'stylist_notes': stylistNotes,
+      'stylist_note': stylistNotes,
     });
     // Optimistically refresh
     state = const AsyncLoading();

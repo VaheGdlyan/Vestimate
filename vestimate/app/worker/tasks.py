@@ -54,7 +54,11 @@ def ingest_garment(self, item_id: str, raw_object_key: str, user_id: str):
                     resp.raise_for_status()
                     ml_results = resp.json()
                 
-                embedding = ml_results["embedding"]
+                embedding = ml_results.get("embedding")
+                
+                if not isinstance(embedding, list) or len(embedding) != 512:
+                    raise ValueError(f"Malformed image embedding: Expected 512-dim vector, got shape {len(embedding) if isinstance(embedding, list) else type(embedding)}")
+                
                 tags = ml_results["tags"]
                 min_confidence = min(tags["category"]["confidence"], tags["fit"]["confidence"], tags["material"]["confidence"])
                 needs_review = min_confidence < 0.70

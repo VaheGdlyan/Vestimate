@@ -24,3 +24,15 @@ api_router.include_router(
     prefix="/wardrobe",
     tags=["wardrobe"],
 )
+
+from app.api.v1.endpoints import users, outfits
+api_router.include_router(
+    users.router,
+    prefix="/users",
+    tags=["users"],
+)
+api_router.include_router(
+    outfits.router,
+    prefix="/outfits",
+    tags=["outfits"],
+)
