@@ -29,10 +29,16 @@ FutureOr<RecommendationState?> todayRecommendation(
     return RecommendationState(items: [], stylistNotes: stylistNotes);
   }
 
-  // Watch wardrobe so recommendation refreshes when new items are added
-  final allItems = ref.watch(wardrobeProvider).value ?? [];
+  // TRIAGE FIX: Don't rely on wardrobeProvider async state (race condition).
+  // Fetch items directly so we always have them when recommendation resolves.
+  final allItemsData = await repository.fetchWardrobeItems();
+  final allItems = allItemsData.map((e) => WardrobeItem.fromJson(e)).toList();
+  
   final recommendedItems =
       allItems.where((item) => itemIds.contains(item.id)).toList();
+
+  // Also watch wardrobe so recommendation refreshes when new items are added
+  ref.watch(wardrobeProvider);
 
   return RecommendationState(
     items: recommendedItems,

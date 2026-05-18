@@ -64,6 +64,12 @@ class Wardrobe extends _$Wardrobe {
     state = AsyncData([...currentItems, item]);
   }
 
+  Future<void> deleteItem(String id) async {
+    final repo = ref.read(wardrobeRepositoryProvider);
+    await repo.deleteWardrobeItem(id);
+    ref.invalidateSelf();
+  }
+
   void updateItem(String id, {String? status, String? imageUrl, String? category, Map<String, dynamic>? metadata}) {
     if (state.value == null) return;
     

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:vestimate/core/theme/theme.dart';
+import 'package:vestimate/core/network/dio_provider.dart';
 import 'package:vestimate/features/recommendation/domain/recommendation_provider.dart';
 
 class StylistTab extends ConsumerStatefulWidget {
@@ -31,7 +32,7 @@ class _StylistTabState extends ConsumerState<StylistTab> {
   ];
 
   void _send(String text) {
-    if (text.trim().isEmpty) return;
+    if (text.trim().isEmpty || _isTyping) return;
     setState(() {
       _messages.add(_Message(text: text, isAI: false));
       _isTyping = true;
@@ -44,33 +45,42 @@ class _StylistTabState extends ConsumerState<StylistTab> {
       ref.invalidate(todayRecommendationProvider);
     }
 
-    // Simulate AI response
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    _callChatAPI(text);
+  }
+
+  Future<void> _callChatAPI(String userMessage) async {
+    // Build message history for context (last 10 messages)
+    final history = _messages
+        .where((m) => m.text != _messages.first.text) // exclude opening greeting
+        .take(10)
+        .map((m) => {'role': m.isAI ? 'assistant' : 'user', 'content': m.text})
+        .toList();
+
+    try {
+      final dio = ref.read(dioProvider);
+      final response = await dio.post('/chat', data: {
+        'messages': history,
+      });
+      final reply = (response.data['reply'] as String?) ?? "I'm not sure how to respond to that. Try asking about outfits or style!";
+      if (mounted) {
+        setState(() {
+          _isTyping = false;
+          _messages.add(_Message(text: reply, isAI: true));
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
       if (mounted) {
         setState(() {
           _isTyping = false;
           _messages.add(_Message(
-            text: _getAIResponse(text),
+            text: "I had trouble connecting. Check that the server is running and try again!",
             isAI: true,
           ));
         });
         _scrollToBottom();
       }
-    });
-  }
-
-  String _getAIResponse(String input) {
-    final lower = input.toLowerCase();
-    if (lower.contains('today') || lower.contains('wear')) {
-      return "Based on today's weather (22°C, sunny), I'd recommend:\n\n👕 Light cotton shirt\n👖 Slim-fit chinos\n👟 Clean white sneakers\n\nThis keeps you comfortable while looking put-together. Want me to pull specific items from your closet?";
     }
-    if (lower.contains('casual') || lower.contains('weekend')) {
-      return "Weekend vibes! Here's what I'm thinking:\n\n🧢 Relaxed hoodie or crew-neck\n👖 Your favorite jeans\n👟 Comfortable sneakers\n\nLayering with a light jacket would be perfect for the evening. Want me to create this outfit?";
-    }
-    if (lower.contains('generate') || lower.contains('new outfit')) {
-      return "Sure! I'm scanning your wardrobe and today's weather to curate a fresh look for you. One moment... 🎨\n\n(I've triggered a new recommendation on your Home screen!)";
-    }
-    return "Great question! I'd love to help with that. Could you tell me a bit more about the occasion, weather, or any specific items you'd like to include? The more context I have, the better my suggestions will be 🎨";
   }
 
   void _scrollToBottom() {

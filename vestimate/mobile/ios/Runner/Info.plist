@@ -2,6 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access to scan your clothing items directly within the app.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs gallery access so you can select and upload existing clothing images.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app needs microphone access for the camera.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs access to location to display accurate local weather for outfit recommendations.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

@@ -1,5 +1,5 @@
 class AppConfig {
-  static const String apiBaseUrl = 'http://127.0.0.1:8888/v1';// For Chrome/Web testing
+  static const String apiBaseUrl = 'http://192.168.33.211:8888/v1';// For Chrome/Web/Phone testing
   // For Android Emulator use: 'http://10.0.2.2:8000/v1'
   
   static const String supabaseUrl = 'https://xkruowqfzucoyornykot.supabase.co';

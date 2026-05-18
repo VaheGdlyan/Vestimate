@@ -96,6 +96,11 @@ class WardrobeRepository {
     }
   }
 
+  /// Delete a wardrobe item by ID.
+  Future<void> deleteWardrobeItem(String itemId) async {
+    await _dio.delete('/wardrobe/items/$itemId');
+  }
+
   /// Fetch today's AI recommendation.
   Future<Map<String, dynamic>> getTodayRecommendation() async {
     final response = await _dio.get('/recommendations/today');

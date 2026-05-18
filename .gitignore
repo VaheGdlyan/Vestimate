@@ -41,3 +41,13 @@ test_images/*.jpeg
 test_images/*.png
 test_images/*.webp
 test_images/*.gif
+
+# ── ML Models & Databases ──────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+models/
+weights/
+*.onnx
+*.pt
+*.bin

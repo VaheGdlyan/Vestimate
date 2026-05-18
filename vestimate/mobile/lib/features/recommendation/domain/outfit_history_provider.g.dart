@@ -6,7 +6,7 @@ part of 'outfit_history_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$outfitHistoryHash() => r'b4e8c2f1a9d7e3b6c5f2a8e1d4b7c9f3a6e2b5d8';
+String _$outfitHistoryHash() => r'c8f92e4bc10c4ef7bd0792fd583339e82cd0cf5c';
 
 /// See also [OutfitHistory].
 @ProviderFor(OutfitHistory)

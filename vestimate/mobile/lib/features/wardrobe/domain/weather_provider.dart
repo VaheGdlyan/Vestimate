@@ -1,4 +1,5 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:vestimate/core/network/dio_provider.dart';
 
 part 'weather_provider.g.dart';
@@ -46,8 +47,30 @@ class WeatherData {
 @riverpod
 Future<WeatherData> weather(WeatherRef ref) async {
   try {
+    Position? position;
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (serviceEnabled) {
+        LocationPermission permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+        if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
+          position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.low);
+        }
+      }
+    } catch (_) {
+      // Gracefully ignore location errors (e.g. denied permanently)
+    }
+
     final dio = ref.watch(dioProvider);
-    final response = await dio.get('/weather');
+    final response = await dio.get(
+      '/weather',
+      queryParameters: {
+        if (position != null) 'lat': position.latitude,
+        if (position != null) 'lon': position.longitude,
+      },
+    );
     return WeatherData.fromJson(response.data as Map<String, dynamic>);
   } catch (_) {
     // Always return a degraded payload — never propagate error to UI

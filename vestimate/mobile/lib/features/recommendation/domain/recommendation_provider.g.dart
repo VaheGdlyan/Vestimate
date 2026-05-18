@@ -7,7 +7,7 @@ part of 'recommendation_provider.dart';
 // **************************************************************************
 
 String _$todayRecommendationHash() =>
-    r'280e62081d02a476dff1c48dc3ca56d7441dace5';
+    r'a548a80069d2134dee51207ce29980e2e0984db1';
 
 /// See also [todayRecommendation].
 @ProviderFor(todayRecommendation)

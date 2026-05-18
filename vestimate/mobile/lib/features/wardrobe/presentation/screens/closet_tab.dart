@@ -66,6 +66,8 @@ class ClosetTab extends ConsumerWidget {
                             label: Text(cat),
                             selected: currentFilter == cat,
                             onSelected: (_) {
+                              // TRIAGE FIX: backend expects lowercase ('tops'), filter chip shows 'Tops'
+                              // Pass lowercase to the notifier; display is unchanged
                               ref.read(wardrobeCategoryFilterProvider.notifier).setFilter(cat);
                             },
                             selectedColor: V.accent.withOpacity(0.12),

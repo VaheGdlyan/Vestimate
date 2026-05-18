@@ -6,13 +6,13 @@ import 'package:vestimate/core/theme/theme.dart';
 import 'package:vestimate/features/wardrobe/domain/wardrobe_notifier.dart';
 import 'package:vestimate/features/wardrobe/data/wardrobe_repository.dart';
 
-class GarmentDetailScreen extends StatelessWidget {
+class GarmentDetailScreen extends ConsumerWidget {
   final WardrobeItem item;
 
   const GarmentDetailScreen({super.key, required this.item});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: V.bg,
       body: CustomScrollView(
@@ -137,25 +137,21 @@ class GarmentDetailScreen extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: Consumer(
-                            builder: (context, ref, _) {
-                              return ElevatedButton.icon(
-                                onPressed: () async {
-                                  HapticFeedback.mediumImpact();
-                                  final repo = ref.read(wardrobeRepositoryProvider);
-                                  await repo.sendFeedback(item.id, 'worn');
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Marked as worn today ✓'),
-                                      ),
-                                    );
-                                  }
-                                },
-                                icon: const Icon(Icons.checkroom, size: 18),
-                                label: const Text('Wear Now'),
-                              );
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              HapticFeedback.mediumImpact();
+                              final repo = ref.read(wardrobeRepositoryProvider);
+                              await repo.sendFeedback(item.id, 'worn');
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Marked as worn today ✓'),
+                                  ),
+                                );
+                              }
                             },
+                            icon: const Icon(Icons.checkroom, size: 18),
+                            label: const Text('Wear Now'),
                           ),
                         ),
                         const SizedBox(width: V.s12),
@@ -163,7 +159,7 @@ class GarmentDetailScreen extends StatelessWidget {
                           child: OutlinedButton.icon(
                             onPressed: () {
                               HapticFeedback.lightImpact();
-                              _showDeleteConfirmation(context);
+                              _showDeleteConfirmation(context, ref);
                             },
                             icon: const Icon(Icons.delete_outline, size: 18, color: V.danger),
                             label: const Text('Remove', style: TextStyle(color: V.danger)),
@@ -205,7 +201,7 @@ class GarmentDetailScreen extends StatelessWidget {
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context) {
+  void _showDeleteConfirmation(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
       backgroundColor: V.bgSheet,
@@ -249,14 +245,24 @@ class GarmentDetailScreen extends StatelessWidget {
                 const SizedBox(width: V.s12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.pop(context);
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Item removed from wardrobe'),
-                        ),
-                      );
+                      try {
+                        await ref.read(wardrobeProvider.notifier).deleteItem(item.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Item removed from wardrobe ✓'),
+                          ),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Failed to remove item: $e'),
+                            backgroundColor: V.danger,
+                          ),
+                        );
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: V.danger,

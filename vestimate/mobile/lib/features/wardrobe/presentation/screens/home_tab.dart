@@ -12,6 +12,7 @@ import 'package:vestimate/features/recommendation/domain/recommendation_provider
 import 'package:vestimate/features/recommendation/domain/outfit_history_provider.dart';
 import 'package:vestimate/features/wardrobe/data/wardrobe_repository.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:vestimate/features/wardrobe/presentation/screens/camera_screen.dart';
 
 class HomeTab extends ConsumerStatefulWidget {
   const HomeTab({super.key});
@@ -441,18 +442,29 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
   Future<void> _handleUpload(
       BuildContext context, WidgetRef ref, ImageSource source) async {
-    final picker = ImagePicker();
     XFile? image;
-    try {
-      image = await picker.pickImage(source: source, imageQuality: 85);
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not access ${source == ImageSource.camera ? "camera" : "gallery"}: $e')),
-        );
+
+    if (source == ImageSource.camera) {
+      // Use custom in-app live camera screen
+      image = await Navigator.push<XFile?>(
+        context,
+        MaterialPageRoute(builder: (context) => const CameraScreen()),
+      );
+    } else {
+      // Use standard image picker for gallery
+      final picker = ImagePicker();
+      try {
+        image = await picker.pickImage(source: source, imageQuality: 85);
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not access gallery: $e')),
+          );
+        }
+        return;
       }
-      return;
     }
+
     if (image == null) return;
 
     if (context.mounted) {
@@ -464,13 +476,17 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     try {
       final repo = ref.read(wardrobeRepositoryProvider);
       await repo.uploadGarment(image);
-      // Refresh wardrobe after successful upload
+      // Refresh wardrobe and recommendations after successful upload
       ref.invalidate(wardrobeProvider);
+      ref.invalidate(todayRecommendationProvider);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Upload successful! Item added to closet ✓')),
+              duration: Duration(seconds: 3),
+              content: Text('✓ Item classified & added to your closet!')),
         );
+        // Navigate to Closet tab so user sees their new item immediately
+        ref.read(bottomNavProvider.notifier).state = 1;
       }
     } on ArgumentError catch (e) {
       // Client-side validation errors
