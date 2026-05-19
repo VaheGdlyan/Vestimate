@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -14,7 +13,7 @@ const bool kDevAuthBypass = true;
 @riverpod
 GoRouter router(RouterRef ref) {
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/',  
     redirect: (context, state) {
       // Epic 6 — Auth redirect logic
       if (kDevAuthBypass) return null; // In dev mode, always allow through

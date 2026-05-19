@@ -81,8 +81,6 @@ class UploadProgressBanner extends ConsumerWidget {
         return V.success;
       case TaskStatus.failed:
         return V.danger;
-      default:
-        return V.textMuted;
     }
   }
 
@@ -102,8 +100,6 @@ class UploadProgressBanner extends ConsumerWidget {
         return const Icon(Icons.check_circle, color: V.success, size: 28);
       case TaskStatus.failed:
         return const Icon(Icons.error, color: V.danger, size: 28);
-      default:
-        return const Icon(Icons.cloud_upload, color: V.textMuted, size: 28);
     }
   }
 
@@ -117,8 +113,6 @@ class UploadProgressBanner extends ConsumerWidget {
         return 'Garment Digitized!';
       case TaskStatus.failed:
         return 'Processing Failed';
-      default:
-        return 'Unknown Status';
     }
   }
 
@@ -132,8 +126,6 @@ class UploadProgressBanner extends ConsumerWidget {
         return 'Tap to view in your closet';
       case TaskStatus.failed:
         return 'Please try again with a clearer image';
-      default:
-        return '';
     }
   }
 }

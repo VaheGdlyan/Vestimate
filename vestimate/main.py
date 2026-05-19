@@ -2,10 +2,10 @@
 ═══════════════════════════════════════════════════════
  VESTIMATE — CLOTHES CLASSIFICATION AUDIT REPORT
 ═══════════════════════════════════════════════════════
-- File: c:/Users/User/OneDrive/Рабочий стол/Projects/Vestimate/vestimate/main.py
+- File: vestimate/main.py
 - [A] Calling Pattern: Uses OpenAI AsyncOpenAI vision API client.chat.completions.create with model "gpt-4o-mini".
-- [B] Prompt: "Classify this clothing item into exactly ONE of these four categories: tops, bottoms, footwear, outerwear. Reply with ONLY the single category word, nothing else."
-- [C] Response parsing: Simple text parsing (strip and lowercase), matches "tops", "bottoms", "footwear", "outerwear", defaults to "garment".
+- [B] Prompt: System prompt classifies clothing into categories (tops, bottoms, footwear, outerwear, etc.) and returns structured JSON.
+- [C] Response parsing: Simple text parsing (strip JSON), matches known categories, defaults to "garment".
 - [D] Data flow: Prepends category to the unique filename, writes file to the local test_images2 folder, and creates task status.
 ═══════════════════════════════════════════════════════
 """
@@ -31,7 +31,6 @@ load_dotenv()
 
 # Read API keys directly from env — avoid fragile app.core.config import
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 OPENWEATHERMAP_API_KEY = os.environ.get("OPENWEATHERMAP_API_KEY", "")
 DEMO_MODE = os.environ.get("DEMO_MODE", "True").lower() in ("true", "1", "yes")
 
@@ -43,17 +42,10 @@ log = logging.getLogger("vestimate")
 # ── App ──────────────────────────────────────────────────────────────────────
 app = FastAPI(title="Vestimate API", version="3.0.0")
 
-# Epic 6 — CORS restricted to localhost only (not wildcard *)
+# CORS — allow all origins in local dev (phone + browser + any LAN IP)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:*",
-        "http://127.0.0.1:*",
-        "http://localhost:5000",
-        "http://localhost:8080",
-        "http://localhost:42069",  # Flutter web default port range
-    ],
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -133,17 +125,19 @@ def get_category_from_filename(filename: str) -> str:
     return "garment"
 
 
-def get_items_from_folder() -> list[dict]:
+def get_items_from_folder(base_url: str = "http://localhost:8888") -> list[dict]:
     items = []
     if not os.path.exists(IMAGES_DIR):
         return items
+    # Strip trailing slash for clean URL concatenation
+    base = base_url.rstrip("/")
     for filename in sorted(os.listdir(IMAGES_DIR)):
         if filename.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
             category = get_category_from_filename(filename)
             items.append({
                 "id": filename,
-                "segmented_image_url": f"http://localhost:8888/static_clothes/{filename}",
-                "raw_image_url": f"http://localhost:8888/static_clothes/{filename}",
+                "segmented_image_url": f"{base}/static_clothes/{filename}",
+                "raw_image_url": f"{base}/static_clothes/{filename}",
                 "category": category,
                 "item_name": filename.replace("_", " ").replace("-", " ").split(".")[0].title(),
             })
@@ -284,7 +278,7 @@ async def get_weather(
             "available": True,
         }
 
-# ── CLOTHES CLASSIFICATION ENGINE (GEMINI FLASH) ────────────────────────────────
+# ── CLOTHES CLASSIFICATION ENGINE (OPENAI GPT-4o-mini VISION) ────────────────
 _CLASSIFICATION_SYSTEM_PROMPT = """You are a fashion AI classification engine.
 Analyze the clothing item provided and return ONLY a JSON object.
 No explanation. No markdown. No extra text. Pure JSON only.
@@ -357,70 +351,58 @@ def parse_classification_response(raw_text: str) -> dict:
 
 
 async def classify_clothing_item(contents: bytes, mime_type: str) -> dict:
-    inputType = "image"
-    # Step 6: Add Error Visibility (Before API call)
-    log.info(f"[VESTIMATE CLASSIFY] Sending to Gemini. Input type: {inputType}")
+    """Classify a clothing image using OpenAI GPT-4o-mini vision API."""
+    log.info(f"[VESTIMATE CLASSIFY] Sending to OpenAI GPT-4o-mini. MIME: {mime_type}")
     
-    if not GEMINI_API_KEY:
-        log.error("[VESTIMATE CLASSIFY] FAILED: GEMINI_API_KEY is not set.")
+    if not OPENAI_API_KEY:
+        log.error("[VESTIMATE CLASSIFY] FAILED: OPENAI_API_KEY is not set.")
         return get_fallback_classification()
 
     base64_image = base64.b64encode(contents).decode('utf-8')
+    data_url = f"data:{mime_type};base64,{base64_image}"
     
-    # Reference implementation JSON payload for IMAGE input
-    payload = {
-        "contents": [
-            {
-                "parts": [
-                    {
-                        "inlineData": {
-                            "mimeType": mime_type,
-                            "data": base64_image
-                        }
-                    },
-                    {
-                        "text": _CLASSIFICATION_SYSTEM_PROMPT
-                    }
-                ]
-            }
-        ],
-        "generationConfig": {
-            "temperature": 0.1,
-            "maxOutputTokens": 512,
-            "responseMimeType": "application/json"
-        }
-    }
-    
-    raw_text = ""
-    # Try gemini-2.0-flash first, fall back to gemini-1.5-flash
-    for model in ("gemini-2.0-flash", "gemini-1.5-flash"):
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
-            async with httpx.AsyncClient() as client:
-                response = await client.post(url, json=payload, timeout=12.0)
-                if response.status_code == 200:
-                    res_json = response.json()
-                    # Step 2: Safe path access
-                    raw_text = res_json["candidates"][0]["content"]["parts"][0]["text"]
-                    break
-                else:
-                    log.warning(f"Gemini API call with {model} failed with status {response.status_code}: {response.text}")
-        except Exception as e:
-            log.warning(f"Error calling Gemini model {model}: {e}")
-            
-    if not raw_text:
-        # Step 6: Add Error Visibility (On any failure)
-        log.error(f"[VESTIMATE CLASSIFY] FAILED: API call failed or timed out | Raw response: {raw_text}")
-        return get_fallback_classification()
+    try:
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(api_key=OPENAI_API_KEY)
         
-    result = parse_classification_response(raw_text)
-    if result["success"]:
-        # Step 6: Add Error Visibility (After successful parse)
-        log.info(f"[VESTIMATE CLASSIFY] Result: {json.dumps(result['data'])}")
-        return result["data"]
-    else:
-        # Step 6: Add Error Visibility (On any failure)
-        log.error(f"[VESTIMATE CLASSIFY] FAILED: Parsing failed | Raw response: {raw_text}")
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": _CLASSIFICATION_SYSTEM_PROMPT,
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": data_url, "detail": "low"},
+                        },
+                        {
+                            "type": "text",
+                            "text": "Classify this clothing item.",
+                        },
+                    ],
+                },
+            ],
+            max_tokens=512,
+            temperature=0.1,
+            timeout=15.0,
+        )
+        
+        raw_text = response.choices[0].message.content.strip()
+        log.info(f"[VESTIMATE CLASSIFY] OpenAI raw response: {raw_text[:200]}")
+        
+        result = parse_classification_response(raw_text)
+        if result["success"]:
+            log.info(f"[VESTIMATE CLASSIFY] Result: {json.dumps(result['data'])}")
+            return result["data"]
+        else:
+            log.error(f"[VESTIMATE CLASSIFY] FAILED: Parsing failed | Raw: {raw_text}")
+            return get_fallback_classification()
+    except Exception as e:
+        log.error(f"[VESTIMATE CLASSIFY] FAILED: OpenAI API error: {e}")
         return get_fallback_classification()
 
 
@@ -430,12 +412,15 @@ async def classify_clothing_item(contents: bytes, mime_type: str) -> dict:
 
 @app.get("/v1/wardrobe/items")
 async def get_wardrobe_items(
+    request: Request,
     category: Optional[str] = Query(None),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ):
     log.info(f"GET /wardrobe/items  category={category or 'All'}  limit={limit}  offset={offset}")
-    all_items = get_items_from_folder()
+    # Use the request's base_url so images resolve correctly on any client (browser OR phone)
+    base_url = str(request.base_url).rstrip("/")
+    all_items = get_items_from_folder(base_url)
 
     filtered = all_items
     if category:
@@ -501,17 +486,17 @@ async def upload_garment(file: UploadFile = File(...)):
             detail=f"File too large ({size_mb:.1f} MB). Maximum allowed is {MAX_FILE_SIZE_MB} MB.",
         )
 
-    # Classify the image using Gemini Flash with emergency hardcoded fallback
+    # Classify the image using OpenAI GPT-4o-mini vision
     category = "garment"
-    if GEMINI_API_KEY:
+    if OPENAI_API_KEY:
         classification = await classify_clothing_item(contents, file.content_type or "image/jpeg")
         category = classification.get("category", "garment")
-        log.info(f"Gemini Flash classified image category: {category}")
+        log.info(f"OpenAI classified image category: {category}")
     else:
         # Emergency Demo Fallback: Bypassed Vision AI when API key is missing
         import random
         category = random.choice(["tops", "bottoms", "outerwear"])
-        log.info(f"DEMO FALLBACK ACTIVE (No Gemini Key): Bypassed Vision AI. Hardcoded fallback category -> {category}")
+        log.info(f"DEMO FALLBACK ACTIVE (No OpenAI Key): Hardcoded fallback category -> {category}")
 
     # Make filename unique and include the category to persist it without a DB
     raw_name = file.filename or "upload.jpg"
