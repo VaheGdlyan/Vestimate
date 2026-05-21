@@ -313,17 +313,13 @@ The current product is Phase 1: a personal AI wardrobe assistant for individual 
 
 The architecture was never designed for that scope alone.
 
-**Phase 2 — Visual Try-On (12–18 months)**
+**Phase 2 — Visual Try-On**
 
-The segmentation and embedding infrastructure being built today is simultaneously the training data pipeline for a 2D image-conditioned virtual try-on system. Every garment a user digitizes is a clean, background-isolated, semantically-indexed asset. When the generative layer is activated, there is no cold start on data.
+Will be soon ...
 
-The Phase 2 target is image-conditioned garment synthesis: a user provides a photograph of themselves; the system overlays wardrobe assets with realistic texture alignment, edge fidelity, and lighting-consistent rendering using a latent diffusion pipeline. The difficulty of this problem — cloth deformation, body shape diversity, mobile-viable inference latency, photorealistic rendering — is precisely what makes it a serious commercial opportunity. No general-purpose winner has emerged at production scale.
+**Phase 3 — B2B Commerce Infrastructure**
 
-**Phase 3 — B2B Commerce Infrastructure (3+ years)**
-
-The virtual try-on pipeline becomes a modular API layer embedded directly in retailer e-commerce storefronts. The commercial model is transactional: a percentage of sales completed through the try-on interface. The value proposition is quantifiable: reduced return rates, increased purchase confidence, higher average order value.
-
-This is not a feature roadmap. It is a platform architecture trajectory. The foundation is being laid in the current codebase.
+Will be soon ...
 
 ---
 
@@ -353,10 +349,10 @@ If you are a developer, researcher, or engineer who wants to understand not just
 - **Vector Pipeline Internals — pgvector, IVFFlat, and Cosine Geometry** — *Why 512 dimensions, what IVFFlat buys you at wardrobe scale, and how the query vector is constructed from heterogeneous input signals*
 - **Computational Realism in Production AI — Building Under Constraint** — *Scale-to-zero infrastructure economics, T4 vs A10G capability deltas, and the cost-quality curve for serverless GPU inference*
 
-**Connect with the lead architect:**
+**Connect with the architect:**
 
-- [Follow the UnderTheHood publication on Medium](https://medium.com/@vahegdlyan)
-- [Connect with Vahe Gdlyan on LinkedIn](https://www.linkedin.com/in/vahe-gdlyan)
+- [Follow the UnderTheHood publication on Medium](https://medium.com/@gdlyanvahe31)
+- [Connect with Vahe Gdlyan on LinkedIn](https://www.linkedin.com/in/vahe-gdlyan-1415873a7/)
 
 ---
 
@@ -429,7 +425,7 @@ vestimate/
 - [ ] Railway Pro — isolate FastAPI, Celery, and Beat into dedicated compute
 - [ ] A10G GPU access — unlock LoRA fine-tuning of FashionCLIP on domain-specific data
 
-**Phase 2 activation (12–18 months)**
+**Phase 2 activation**
 
 - [ ] Image-conditioned 2D virtual try-on: research pipeline selection and data architecture
 - [ ] B2B API design: retailer integration specification and commercial model definition
