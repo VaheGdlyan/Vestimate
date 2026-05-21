@@ -33,13 +33,13 @@
 
 | Home & Daily Recommendation | Wardrobe Grid | AI Outfit Collections |
 |:---:|:---:|:---:|
-| ![Home Screen](./docs/assets/Home_Screen.png) | ![Closet Grid](./docs/assets/wardrob.png) | ![Outfits Screen](./docs/assets/AI_outfits.png) |
+| ![Home Screen](./docs/assets/Home_Screen.png) | ![Closet Grid](./docs/assets/wardrob.jpg) | ![Outfits Screen](./docs/assets/AI_Outfit.png) |
 
 </div>
 
 **Stylist Chat Interface:**
 
-![Stylist Chat](./docs/assets/Stylist_chat.png)
+![Stylist Chat](./docs/assets/Stylist_chat.jpg)
 
 ---
 
