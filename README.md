@@ -39,7 +39,7 @@
 
 **Stylist Chat Interface:**
 
-![Stylist Chat](./docs/assets/Stylist_chat.jpg)
+<img src="./docs/assets/Stylist_chat.jpg" alt="Stylist Chat" width="300">
 
 ---
 
