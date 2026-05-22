@@ -351,7 +351,7 @@ If you are a developer, researcher, or engineer who wants to understand not just
 
 **Connect with the architect:**
 
-- [Follow the UnderTheHood publication on Medium](https://medium.com/@gdlyanvahe31)
+- [Explore deeper with math](https://medium.com/p/bd83426674a0?postPublishedType=initial)
 - [Connect with Vahe Gdlyan on LinkedIn](https://www.linkedin.com/in/vahe-gdlyan-1415873a7/)
 
 ---
